@@ -1,0 +1,36 @@
+# bandit-sast:
+#   stage: test
+#   image: debian:bullseye
+#   before_script:
+#   - echo Etc/UTC > /etc/timezone
+#   - echo 'APT::Install-Recommends "0";' >> /etc/apt/apt.conf.d/99gitlab
+#   - echo 'APT::Install-Suggests "0";' >> /etc/apt/apt.conf.d/99gitlab
+#   - echo 'APT::Acquire::Retries "20";' >> /etc/apt/apt.conf.d/99gitlab
+#   - echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf.d/99gitlab
+#   - echo 'Acquire::https::Verify-Peer "false";' >> /etc/apt/apt.conf.d/99gitlab
+#   - echo 'Acquire::https::Verify-Host "false";' >> /etc/apt/apt.conf.d/99gitlab
+#   - echo 'Dpkg::Use-Pty "0";' >> /etc/apt/apt.conf.d/99gitlab
+#   - apt-get update || true
+#   - apt-get install -y python3 python3-bandit
+#   - apt-get install -y procps
+#   - sysctl -w net.ipv6.conf.all.disable_ipv6=0
+#   - sysctl -w net.ipv6.conf.default.disable_ipv6=0
+#   script:
+#   # testing the logger require to change environment variable BEFORE the module is loaded => dedicated call
+#   - bandit proton -r --format xml -o bandit.xml
+#   artifacts:
+#     reports:
+#       junit: bandit.xml
+
+pages:
+  image: python:3.10.0-slim-bullseye
+  script:
+#  - pip install -r requirements.txt
+  - pip install sphinx sphinx-rtd-theme
+  - pip install .
+  - sphinx-build -b html docs/ public
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
