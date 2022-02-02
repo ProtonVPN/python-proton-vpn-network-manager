@@ -1,4 +1,4 @@
-from proton.vpn.backend import LinuxNetworkManager
+from proton.vpn.backend.linux.networkmanager import LinuxNetworkManager
 import os
 from proton.utils import ExecutionEnvironment
 

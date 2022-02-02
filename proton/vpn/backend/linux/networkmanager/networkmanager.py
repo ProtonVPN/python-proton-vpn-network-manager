@@ -1,5 +1,5 @@
 import gi
-from protonvpn.vpn import VPNConnection
+from proton.vpn.connection import VPNConnection
 
 gi.require_version("NM", "1.0")
 
@@ -25,13 +25,13 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         Returns vpn connection based on specified procotol from factory.
         """
         if "openvpn" in protocol.lower():
-            from proton.backend.networkmanager.protocol import OpenVPN
+            from proton.vpn.backend.linux.networkmanager.protocol import OpenVPN
             return OpenVPN.get_by_protocol(protocol)
         elif "wireguard" in protocol.lower():
-            from proton.backend.networkmanager.protocol import Wireguard
+            from proton.vpn.backend.linux.networkmanager.protocol import Wireguard
             return Wireguard
         elif "ikev2" in protocol.lower():
-            from proton.backend.networkmanager.protocol import Strongswan
+            from proton.vpn.backend.linux.networkmanager.protocol import Strongswan
             return Strongswan
 
     def up(self):
@@ -45,9 +45,9 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
     @classmethod
     def _get_connection(cls):
-        from proton.backend.networkmanager.protocol import (Strongswan,
+        from proton.vpn.backend.linux.networkmanager.protocol import (Strongswan,
                                                             Wireguard)
-        from proton.backend.networkmanager.protocol.openvpn import (OpenVPNTCP,
+        from proton.vpn.backend.linux.networkmanager.protocol.openvpn import (OpenVPNTCP,
                                                                     OpenVPNUDP)
 
         classes = [OpenVPNTCP, OpenVPNUDP, Wireguard, Strongswan]
@@ -74,8 +74,13 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         raise NotImplementedError
 
     @classmethod
-    def _priority(cls):
+    def _get_priority(cls):
         return 100
+
+    @classmethod
+    def _validate(cls):
+        # FIX ME: This should do a validation to ensure that NM can be used
+        return True
 
     def _import_vpn_config(self, vpnconfig):
         plugin_info = NM.VpnPluginInfo

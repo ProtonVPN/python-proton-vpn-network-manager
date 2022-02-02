@@ -1,4 +1,4 @@
-from proton.vpn.backend import LinuxNetworkManager
+from proton.vpn.backend.linux.networkmanager import LinuxNetworkManager
 
 
 class OpenVPN(LinuxNetworkManager):
@@ -108,7 +108,7 @@ class OpenVPNTCP(OpenVPN):
     _persistence_prefix = "nm_{}_".format(protocol)
 
     def _setup(self):
-        from .vpnconfiguration import VPNConfiguration
+        from proton.vpn.connection.vpnconfiguration import VPNConfiguration
         vpnconfig = VPNConfiguration.from_factory(self.protocol)
         vpnconfig = vpnconfig(self._vpnserver, self._vpncredentials, self._settings)
         vpnconfig.use_certificate = self._use_certificate

@@ -1,4 +1,4 @@
-from proton.vpn.backend import LinuxNetworkManager
+from proton.vpn.backend.linux.networkmanager import LinuxNetworkManager
 
 import gi
 gi.require_version("NM", "1.0")
