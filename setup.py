@@ -11,6 +11,11 @@ setup(
     url="https://github.com/ProtonVPN/pyhon-protonvpn-network-manager",
     packages=find_packages(),
     include_package_data=True,
+    entry_points={
+        "vpn_loader_backend": [
+            "networkmanager = proton.vpn.backend.networkmanager:LinuxNetworkManager",
+        ]
+    },
     license="GPLv3",
     platforms="OS Independent",
     classifiers=[
