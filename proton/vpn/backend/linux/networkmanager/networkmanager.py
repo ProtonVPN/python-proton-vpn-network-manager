@@ -24,15 +24,18 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
         Returns vpn connection based on specified procotol from factory.
         """
-        if "openvpn" in protocol.lower():
-            from proton.vpn.backend.linux.networkmanager.protocol import OpenVPN
-            return OpenVPN.get_by_protocol(protocol)
-        elif "wireguard" in protocol.lower():
-            from proton.vpn.backend.linux.networkmanager.protocol import Wireguard
-            return Wireguard
-        elif "ikev2" in protocol.lower():
-            from proton.vpn.backend.linux.networkmanager.protocol import Strongswan
-            return Strongswan
+        from proton.loader import Loader
+        all_protocols = Loader.get_all("nm_protocol")
+
+        print(all_protocols)
+        print()
+
+        if not all_protocols:
+            return None
+
+        for _p in all_protocols:
+            if _p.class_name == protocol and _p.cls._validate():
+                return _p.cls
 
     def up(self):
         self._setup()
@@ -45,15 +48,11 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
     @classmethod
     def _get_connection(cls):
-        from proton.vpn.backend.linux.networkmanager.protocol import (Strongswan,
-                                                            Wireguard)
-        from proton.vpn.backend.linux.networkmanager.protocol.openvpn import (OpenVPNTCP,
-                                                                    OpenVPNUDP)
+        from proton.loader import Loader
+        all_protocols = Loader.get_all("nm_protocol")
 
-        classes = [OpenVPNTCP, OpenVPNUDP, Wireguard, Strongswan]
-
-        for _class in classes:
-            vpnconnection = _class(None, None)
+        for _p in all_protocols:
+            vpnconnection = _p.cls(None, None)
             if vpnconnection._get_protonvpn_connection():
                 return vpnconnection
 
