@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 
 setup(
     name="python-protonvpn-network-manager",
@@ -9,7 +9,7 @@ setup(
     author="Proton Technologies",
     author_email="contact@protonmail.com",
     url="https://github.com/ProtonVPN/pyhon-protonvpn-network-manager",
-    packages=find_packages(),
+    packages=find_namespace_packages(include=['proton.vpn.backend.linux.networkmanager']),
     include_package_data=True,
     install_requires=["proton-core"],
     entry_points={
