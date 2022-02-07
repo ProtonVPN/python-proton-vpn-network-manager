@@ -4,9 +4,13 @@ from gi.repository import NM, GLib
 
 
 class NMClient:
-    nm_client = NM.Client.new(None)
-    main_loop = GLib.MainLoop()
-    failure=None
+    _nm_client = NM.Client.new(None)
+    _main_loop = GLib.MainLoop()
+    failure = None
+
+    @property
+    def nm_client(self):
+        return self._nm_client
 
     def _commit_changes_async(self, new_connection):
         new_connection.commit_changes_async(
@@ -18,12 +22,12 @@ class NMClient:
                 conn_name=new_connection.get_id(),
             )
         )
-        self.main_loop.run()
-        if NMClient.failure!=None:
+        self._main_loop.run()
+        if NMClient.failure is not None:
             raise NMClient.failure
 
     def _add_connection_async(self, connection):
-        self.nm_client.add_connection_async(
+        self._nm_client.add_connection_async(
             connection,
             True,
             None,
@@ -33,13 +37,13 @@ class NMClient:
                 conn_name=connection.get_id(),
             )
         )
-        self.main_loop.run()
-        if NMClient.failure!=None:
+        self._main_loop.run()
+        if NMClient.failure is not None:
             raise NMClient.failure
 
     def _start_connection_async(self, connection):
         """Start ProtonVPN connection."""
-        self.nm_client.activate_connection_async(
+        self._nm_client.activate_connection_async(
             connection,
             None,
             None,
@@ -50,12 +54,11 @@ class NMClient:
                 conn_name=connection.get_id()
             )
         )
-        self.main_loop.run()
-        if NMClient.failure!=None:
+        self._main_loop.run()
+        if NMClient.failure is not None:
             raise NMClient.failure
 
     def _remove_connection_async(self, connection):
-
         try:
             self.stop_connection_async(connection)
         except: # noqa
@@ -69,8 +72,8 @@ class NMClient:
                 conn_name=connection.get_id()
             )
         )
-        self.main_loop.run()
-        if NMClient.failure!=None:
+        self._main_loop.run()
+        if NMClient.failure is not None:
             raise NMClient.failure
 
     def _stop_connection_async(self, connection):
@@ -79,7 +82,7 @@ class NMClient:
         Args(optional):
             client (NM.nm_client): new NetworkManager Client object
         """
-        self.nm_client.deactivate_connection_async(
+        self._nm_client.deactivate_connection_async(
             connection,
             None,
             self.__dynamic_callback,
@@ -88,8 +91,8 @@ class NMClient:
                 conn_name=connection.get_id()
             )
         )
-        self.main_loop.run()
-        if NMClient.failure!=None:
+        self._main_loop.run()
+        if NMClient.failure is not None:
             raise NMClient.failure
 
     def __dynamic_callback(self, client, result, data):
@@ -101,43 +104,36 @@ class NMClient:
             data (dict): optional extra data
         """
         callback_type = data.get("callback_type")
-        # conn_name = data.get("conn_name")
         try:
             callback_type_dict = dict(
                 remove=dict(
                     finish_function=NM.Client.delete_finish,
-                    msg="removed"
+                    msg="remove"
                 )
             )
         except AttributeError:
             callback_type_dict = dict(
                 add=dict(
-                    finish_function=NM.Client.add_connection_finish,
-                    msg="added"
+                    finish_function=NM.Client.add_connection_finish
                 ),
                 start=dict(
-                    finish_function=NM.Client.activate_connection_finish,
-                    msg="started"
+                    finish_function=NM.Client.activate_connection_finish
                 ),
                 stop=dict(
-                    finish_function=NM.Client.deactivate_connection_finish,
-                    msg="stopped"
+                    finish_function=NM.Client.deactivate_connection_finish
                 ),
                 commit=dict(
-                    finish_function=NM.RemoteConnection.commit_changes_finish,
-                    msg="commit"
+                    finish_function=NM.RemoteConnection.commit_changes_finish
                 )
             )
 
         try:
-            (callback_type_dict[callback_type]["finish_function"])(client, result)
-            # msg = "The connection profile \"{}\" has been {}.".format(
-            #     conn_name,
-            #     callback_type_dict[callback_type]["msg"]
-            # )
+            callback_type_dict[
+                callback_type
+            ]["finish_function"](client, result)
         except KeyError:
             pass
         except Exception as e:
-            NMClient.failure=e
+            NMClient.failure = e
 
-        self.main_loop.quit()
+        self._main_loop.quit()

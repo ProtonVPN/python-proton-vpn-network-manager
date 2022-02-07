@@ -27,9 +27,6 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         from proton.loader import Loader
         all_protocols = Loader.get_all("nm_protocol")
 
-        print(all_protocols)
-        print()
-
         if not all_protocols:
             return None
 
@@ -43,8 +40,22 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         self._start_connection_async(self._get_protonvpn_connection())
 
     def down(self):
-        self._remove_connection_async(self._get_protonvpn_connection())
-        self._remove_connection_persistence()
+        import time
+        counter = 3
+
+        from proton.vpn.connection.exceptions import MissingVPNConnectionError
+        try:
+            self._remove_connection_async(self._get_protonvpn_connection())
+        except AttributeError:
+            raise MissingVPNConnectionError("No ProtonVPN could be found")
+
+        while counter > 0:
+            if not self._get_protonvpn_connection():
+                self._remove_connection_persistence()
+                counter = 0
+
+            time.sleep(1)
+            counter -= 1
 
     @classmethod
     def _get_connection(cls):
@@ -55,6 +66,16 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             vpnconnection = _p.cls(None, None)
             if vpnconnection._get_protonvpn_connection():
                 return vpnconnection
+
+    def cancel(self):
+        from proton.vpn.connection.exceptions import MissingVPNConnectionError
+
+        try:
+            self.down()
+        except MissingVPNConnectionError:
+            return False
+
+        return True
 
     def _get_servername(self) -> str:
         servername = "ProtonVPN Connection"
@@ -107,7 +128,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
         return connection
 
-    def _get_protonvpn_connection(self, from_active=False):
+    def _get_protonvpn_connection(self):
         """Get ProtonVPN connection.
 
         Returns:
@@ -126,15 +147,20 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             return None
 
         for conn in all_conn_list:
-            if conn.get_connection_type() != "vpn" and conn.get_connection_type() != "wireguard":
-                continue
-
+            # Since a connection can be removed at any point, an AttributeError check try/catch
+            # has to be performed, ensuring that we keep this consistent
             try:
-                conn = conn.get_connection()
+                if conn.get_connection_type() != "vpn" and conn.get_connection_type() != "wireguard":
+                    continue
+
+                try:
+                    conn = conn.get_connection()
+                except AttributeError:
+                    pass
+
+                if conn.get_uuid() == self._unique_id:
+                    return conn
             except AttributeError:
                 pass
-
-            if conn.get_uuid() == self._unique_id:
-                return conn
 
         return None
