@@ -39,6 +39,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
                 return _p.cls
 
     def up(self):
+        self._ensure_there_are_no_other_current_protonvpn_connections()
         self._setup()
         self._persist_connection()
         self._start_connection_async(self._get_protonvpn_connection())
