@@ -4,13 +4,21 @@ from gi.repository import NM, GLib
 
 
 class NMClient:
-    _nm_client = NM.Client.new(None)
-    _main_loop = GLib.MainLoop()
-    failure = None
 
-    @property
-    def nm_client(self):
-        return self._nm_client
+    def __init__(self):
+        self.result = False
+        self._main_loop = GLib.MainLoop()
+        self.failure = None
+
+        _nm_client = NM.Client()
+        _nm_client.new_async(None, self.cb, None)
+
+        while not self.result:
+            _nm_client.get_main_context().iteration(may_block=True)
+
+    def cb(self, source_object, res, userdata):
+        self.result = True
+        self.nm_client = source_object.new_finish(res)
 
     def _commit_changes_async(self, new_connection):
         new_connection.commit_changes_async(
@@ -23,11 +31,11 @@ class NMClient:
             )
         )
         self._main_loop.run()
-        if NMClient.failure is not None:
-            raise NMClient.failure
+        if self.failure is not None:
+            raise self.failure
 
     def _add_connection_async(self, connection):
-        self._nm_client.add_connection_async(
+        self.nm_client.add_connection_async(
             connection,
             True,
             None,
@@ -38,12 +46,12 @@ class NMClient:
             )
         )
         self._main_loop.run()
-        if NMClient.failure is not None:
-            raise NMClient.failure
+        if self.failure is not None:
+            raise self.failure
 
     def _start_connection_async(self, connection):
         """Start ProtonVPN connection."""
-        self._nm_client.activate_connection_async(
+        self.nm_client.activate_connection_async(
             connection,
             None,
             None,
@@ -55,8 +63,8 @@ class NMClient:
             )
         )
         self._main_loop.run()
-        if NMClient.failure is not None:
-            raise NMClient.failure
+        if self.failure is not None:
+            raise self.failure
 
     def _remove_connection_async(self, connection):
         try:
@@ -73,8 +81,8 @@ class NMClient:
             )
         )
         self._main_loop.run()
-        if NMClient.failure is not None:
-            raise NMClient.failure
+        if self.failure is not None:
+            raise self.failure
 
     def _stop_connection_async(self, connection):
         """Stop ProtonVPN connection.
@@ -82,7 +90,7 @@ class NMClient:
         Args(optional):
             client (NM.nm_client): new NetworkManager Client object
         """
-        self._nm_client.deactivate_connection_async(
+        self.nm_client.deactivate_connection_async(
             connection,
             None,
             self.__dynamic_callback,
@@ -92,8 +100,8 @@ class NMClient:
             )
         )
         self._main_loop.run()
-        if NMClient.failure is not None:
-            raise NMClient.failure
+        if self.failure is not None:
+            raise self.failure
 
     def __dynamic_callback(self, client, result, data):
         """Dynamic callback method.
@@ -134,6 +142,6 @@ class NMClient:
         except KeyError:
             pass
         except Exception as e:
-            NMClient.failure = e
+            self.failure = e
 
         self._main_loop.quit()

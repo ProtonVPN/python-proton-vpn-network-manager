@@ -18,6 +18,10 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
     backend = "linuxnetworkmanager"
 
+    def __init__(self, *args, **kwargs):
+        NMClient.__init__(self)
+        VPNConnection.__init__(self, *args, **kwargs)
+
     @classmethod
     def factory(cls, protocol: str = None):
         """Get VPN connection.
@@ -52,7 +56,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         while counter > 0:
             if not self._get_protonvpn_connection():
                 self._remove_connection_persistence()
-                counter = 0
+                break
 
             time.sleep(1)
             counter -= 1
