@@ -72,16 +72,6 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             if vpnconnection._get_protonvpn_connection():
                 return vpnconnection
 
-    def cancel(self):
-        from proton.vpn.connection.exceptions import MissingVPNConnectionError
-
-        try:
-            self.down()
-        except MissingVPNConnectionError:
-            return False
-
-        return True
-
     def _get_servername(self) -> str:
         servername = "ProtonVPN Connection"
         try:
