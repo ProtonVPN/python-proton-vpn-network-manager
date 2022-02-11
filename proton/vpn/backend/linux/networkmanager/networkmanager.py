@@ -38,29 +38,15 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             if _p.class_name == protocol and _p.cls._validate():
                 return _p.cls
 
-    def up(self):
-        self._ensure_there_are_no_other_current_protonvpn_connections()
+    def _start_connection(self):
         self._setup()
-        self._persist_connection()
         self._start_connection_async(self._get_protonvpn_connection())
 
-    def down(self):
-        import time
-        counter = 3
-
-        from proton.vpn.connection.exceptions import MissingVPNConnectionError
+    def _stop_connection(self):
         try:
             self._remove_connection_async(self._get_protonvpn_connection())
         except AttributeError:
-            raise MissingVPNConnectionError("No ProtonVPN could be found")
-
-        while counter > 0:
-            if not self._get_protonvpn_connection():
-                self._remove_connection_persistence()
-                break
-
-            time.sleep(1)
-            counter -= 1
+            pass
 
     @classmethod
     def _get_connection(cls):
