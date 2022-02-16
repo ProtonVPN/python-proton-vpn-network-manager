@@ -40,11 +40,11 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
     def _start_connection(self):
         self._setup()
-        self._start_connection_async(self._get_protonvpn_connection())
+        self._start_connection_async(self._get_nm_connection())
 
     def _stop_connection(self):
         try:
-            self._remove_connection_async(self._get_protonvpn_connection())
+            self._remove_connection_async(self._get_nm_connection())
         except AttributeError:
             pass
 
@@ -55,7 +55,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
         for _p in all_protocols:
             vpnconnection = _p.cls(None, None)
-            if vpnconnection._get_protonvpn_connection():
+            if vpnconnection._get_nm_connection():
                 return vpnconnection
 
     def _get_servername(self) -> str:
@@ -109,7 +109,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
         return connection
 
-    def _get_protonvpn_connection(self):
+    def _get_nm_connection(self):
         """Get ProtonVPN connection.
 
         Returns:
