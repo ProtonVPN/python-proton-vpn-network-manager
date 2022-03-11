@@ -1,10 +1,14 @@
-import gi
+from dbus.mainloop.glib import DBusGMainLoop
+from proton.vpn.backend.linux.networkmanager.enum import (
+    ConnectionStartStatusEnum, VPNConnectionReasonEnum, VPNConnectionStateEnum)
 from proton.vpn.connection import VPNConnection
+from proton.vpn.connection.enum import StateMachineEventEnum
+from .monitor_vpn_start import MonitorVPNConnectionStart
 
+import gi
 gi.require_version("NM", "1.0")
-
 from gi.repository import NM
-from .nmclient import NMClient
+from .nmclient import GLib, NMClient
 
 
 class LinuxNetworkManager(VPNConnection, NMClient):
@@ -39,8 +43,35 @@ class LinuxNetworkManager(VPNConnection, NMClient):
                 return _p.cls
 
     def _start_connection(self):
+        import threading
+        thread = threading.Thread(target=self._start_connection_in_thread)
+        thread.start()
+
+    def _start_connection_in_thread(self):
         self._setup()
+        # self._persist_connection()
         self._start_connection_async(self._get_nm_connection())
+        DBusGMainLoop(set_as_default=True)
+        self.__dbus_loop = GLib.MainLoop()
+
+        MonitorVPNConnectionStart(self._unique_id, self.proxy_on_vpn_state_changed)
+        self.__dbus_loop.run()
+
+    def proxy_on_vpn_state_changed(self, state, reason):
+        state = VPNConnectionStateEnum(state)
+        reason = VPNConnectionReasonEnum(reason)
+
+        if state == VPNConnectionStateEnum.IS_ACTIVE:
+            self.on_event(StateMachineEventEnum.CONNECTED)
+            self.__dbus_loop.quit()
+        elif state == VPNConnectionStateEnum.FAILED:
+            # FIX-ME: inform the state machine based on VPNConnectionReasonEnum reasons
+            print("Failed", state, reason)
+            self.__dbus_loop.quit()
+        elif state == VPNConnectionStateEnum.DISCONNECTED:
+            print("Disconnected", state, reason)
+            # FIX-ME: inform the state machine based on VPNConnectionReasonEnum reasons
+            self.__dbus_loop.quit()
 
     def _stop_connection(self):
         try:
