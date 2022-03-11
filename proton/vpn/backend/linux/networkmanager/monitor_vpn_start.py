@@ -14,8 +14,6 @@ class MonitorVPNConnectionStart:
                 if active_conn.state == NMActiveConnectionState.ACTIVATING:
                     active_conn.connect_on_vpn_state_changed(callback)
                 elif active_conn.state == NMActiveConnectionState.ACTIVATED:
-                    print("Activated State")
-                    # FIX-ME: Inform already connected
-                    pass
+                    callback(5, 0)
 
                 break

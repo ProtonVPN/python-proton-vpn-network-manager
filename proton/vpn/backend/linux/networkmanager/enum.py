@@ -1,10 +1,4 @@
-from enum import IntFlag, Enum
-
-
-class ConnectionStartStatusEnum(Enum):
-    STATE = "state"
-    REASON = "reason"
-    MESSAGE = "message"
+from enum import IntFlag
 
 
 class NMActiveConnectionState(IntFlag):
