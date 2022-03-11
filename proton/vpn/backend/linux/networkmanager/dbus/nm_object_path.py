@@ -2,8 +2,72 @@ from .dbus_object_path import DbusObjectPath
 
 
 class NetworkManagerDbusObjectPath(DbusObjectPath):
+    """
+    Base class from which all dbus object paths should derive from.
+
+    All sub-classes should define their own `specific_object_path_prefix`
+    and depending if the object path is stable or not, should also define
+    `_object_path`.
+
+    A stable objec path is one that does not change, ie `/org/freedesktop/NetworkManager`.
+    An unstable object path is the done that exists at a given point but removed later,
+    and vice-versa. For such cases it is reccomended to use pass only the last element of the
+    object path to the constructor, so that the object path can be automatically built based on 
+    `nm_object_path_prefix` and `specific_object_path_prefix`.
+
+    Given that not all object paths have the same dbus interfaces (and the number of interfaces),
+    not all sub-classes will necessarly have the exact same methods.
+
+    To create a new object path, you need to know if it's a stable path or not.
+
+    Example of stable paths:
+        - `/org/freedesktop/NetworkManager/`
+        - `/org/freedesktop/NetworkManager/AgentManager`
+        - `/org/freedesktop/NetworkManager/DnsManager`
+        - etc
+
+    .. code-block::
+
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerDbusObjectPath
+
+        class NetworkManagerAgentManagerObjectPath(NetworkManagerDbusObjectPath):
+            specific_object_path_prefix = "AgentManager"
+            _object_path = "/org/freedesktop/NetworkManager/" + specific_object_path_prefix
+            example_interface = "org.freedesktop.NetworkManager.AgentManager"
+
+            def _ensure_that_object_exists(self):
+                return self.get_all_properties(self.example_interface)
+
+        # To instantiate this class all you need to do is pass it a bus
+        import dbus
+        agent_manager = NetworkManagerAgentManagerObjectPath(dbus.SystemBus())
+
+    Example of unstable paths:
+        - /org/freedesktop/NetworkManager/Devices/*
+        - /org/freedesktop/NetworkManager/ActiveConnection/*
+        - /org/freedesktop/NetworkManager/Settings/*
+        - etc
+
+    .. code-block::
+
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerDbusObjectPath
+
+        class NetworkManagerIP4ObjectPath(NetworkManagerDbusObjectPath):
+            specific_object_path_prefix = "IP4Config/"
+            _object_path = "/org/freedesktop/NetworkManager/" + specific_object_path_prefix
+            example_interface = "org.freedesktop.NetworkManager.IP4Config"
+
+            def _ensure_that_object_exists(self):
+                return self.get_all_properties(self.example_interface)
+
+        # To instantiate this class, you need to pass the bus but also the
+        # name of the object, which in this case let it be 10
+        import dbus
+        ip4 = NetworkManagerIP4ObjectPath(dbus.SystemBus(), 10)
+    """
     nm_object_path_prefix = "/org/freedesktop/NetworkManager/"
     bus_name = "org.freedesktop.NetworkManager"
+    specific_object_path_prefix = ""
 
     def __init__(self, bus, object_path=None):
         self.bus = bus
@@ -17,20 +81,41 @@ class NetworkManagerDbusObjectPath(DbusObjectPath):
 
 
 class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
+    """
+    Provides an easy way to talk to `/org/freedesktop/NetworkManager` dbus object.
+
+    .. code-block::
+        import dbus
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerObjectPath
+
+        nm = NetworkManagerObjectPath(dbus.SystemBus())
+    """
     specific_object_path_prefix = ""
     _object_path = "/org/freedesktop/NetworkManager" + specific_object_path_prefix
     nm_interface_path = "org.freedesktop.NetworkManager"
 
     @property
-    def properties(self):
+    def properties(self) -> "dict":
+        """
+            :return: properties
+            :rtype: dict
+        """
         return self.get_all_properties(self.nm_interface_path)
 
     @property
-    def networkmanager_interface(self):
+    def networkmanager_interface(self) -> "dbus.proxies.Interface":
+        """
+            :return: proxy interface
+            :rtype: dbus.proxies.Interface
+        """
         return self._get_interface_from_path(self.nm_interface_path)
 
     @property
-    def active_connections(self):
+    def active_connections(self) -> "Generator[ActiveConnectionObjectPath]":
+        """
+            :return: next active connection
+            :rtype: DeviceObjectPath
+        """
         for active_connection_object_path in self.get_property(self.nm_interface_path, "ActiveConnections"):
             yield ActiveConnectionObjectPath(
                 self.bus,
@@ -38,24 +123,30 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
             )
 
     @property
-    def devices(self):
+    def devices(self) -> "Generator[DeviceObjectPath]":
+        """
+            :return: next device object
+            :rtype: DeviceObjectPath
+        """
         for device_object_path in self.networkmanager_interface.GetAllDevices():
             yield DeviceObjectPath(self.bus, device_object_path.split("/")[-1])
 
     def activate_connection(self, connection_settings_object_path, device_object_path, specific_object=None):
         """Activate existing connection.
 
-        Args:
-            connection_settings_path (ActiveConnectionObjectPath): The connection to activate.
+            :param connection_settings_path: The connection to activate.
                 If "/" is given, a valid device path must be given, and
                 NetworkManager picks the best connection to activate for the
                 given device. VPN connections must alwayspass a valid
                 connection path.
-            device_path (DeviceObjectPath): The object path of device to be activated
+            :type active_connection_object_path: str
+            :param device_path: The object path of device to be activated
                 for physical connections. This parameter is ignored for VPN
                 connections, because the specific_object (if provided)
                 specifies the device to use.
-            specific_object (string): The path of a connection-type-specific
+            :type device_path: str
+            :param specific_object: Optional.
+                The path of a connection-type-specific
                 object this activation should use. This parameter is currently
                 ignored for wired and mobile broadband connections, and the
                 value of "/" should be used (ie, no specific object). For
@@ -66,86 +157,174 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
                 connection (to which the VPN connections lifetime
                 will be tied), or pass "/" and NM will automatically use
                 the current default device.
+            :type specific_object: str
 
-        Returns:
-            string | None: either path to active connection
-            if connection was successfully activated
-            or None if not.
+            :return: active connection
+            :rtype: ActiveConnectionObjectPath
         """
         connection_object_path = self.networkmanager_interface.ActivateConnection(
-            connection_settings_object_path.object_path,
-            device_object_path.object_path,
+            connection_settings_object_path,
+            device_object_path,
             specific_object if specific_object else "/"
         )
 
-        return connection_object_path
+        if not connection_object_path:
+            return None
+
+        return ActiveConnectionObjectPath(connection_object_path)
 
     def disconnect_connection(self, active_connection_object_path):
         """
-        Args:
-            active_connection_object_path(ActiveConnectionObjectPath): the active connection object
-
+            :param active_connection_object_path: object path to connection
+            :type active_connection_object_path: str
         """
-        self.networkmanager_interface.DeactivateConnection(active_connection_object_path.object_path)
+        self.networkmanager_interface.DeactivateConnection(active_connection_object_path)
 
     def _ensure_that_object_exists(self):
         self.properties
 
+    def connect_on_device_added(self, callback) -> "None":
+        """
+            :param callback: callback to receive when
+                `DeviceAdded` signal is emitted
+            :type callback: callable
 
-class NetworkManagerSettingsObjectPath(NetworkManagerDbusObjectPath):
-    specific_object_path_prefix = "Settings"
-    _object_path = "/org/freedesktop/NetworkManager/" + specific_object_path_prefix
-    settings_interface_path = "org.freedesktop.NetworkManager.Settings"
-
-    @property
-    def properties(self):
-        return self.get_all_properties(self.settings_interface_path)
-
-    @property
-    def settings_interface(self):
-        return self._get_interface_from_path(self.settings_interface_path)
-
-    @property
-    def stored_connections(self):
-        for stored_connection_object_path in self.settings_interface.ListConnections():
-            yield ConnectionSettingsObjectPath(
-                self.bus,
-                stored_connection_object_path.split("/")[-1]
-            )
-
-    def connect_on_check_permissions(self, callback) -> None:
-        self._connect_to_signal(
-            self.vpn_connection_interface_path,
-            "CheckPermissions",
-            callback
-        )
-
-    def connect_on_device_added(self, callback) -> str:
+        Callback will return a object path of :type: str
+        """
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "DeviceAdded",
             callback
         )
 
-    def connect_on_device_removed(self, callback) -> str:
+    def connect_on_device_removed(self, callback) -> "None":
+        """
+            :param callback: callback to receive when
+                `DeviceRemoved` signal is emitted
+            :type callback: callable
+
+        Callback will return a object path of :type: str
+        """
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "DeviceRemoved",
             callback
         )
 
-    def connect_on_state_changed(self, callback) -> int:
+    def connect_on_check_permissions(self, callback) -> "None":
+        """
+            :param callback: callback to receive when
+                `CheckPermissions` signal is emitted
+            :type callback: callable
+
+        No args should be expected
+        """
         self._connect_to_signal(
             self.vpn_connection_interface_path,
-            "DeviceRemoved",
+            "CheckPermissions",
             callback
         )
+
+    def connect_on_state_changed(self, callback) -> "None":
+        """
+            :param callback: callback to receive when
+                network `StateChanged` signal is emitted
+            :type callback: callable
+
+        Callback will return the network state of :type: int
+        """
+        self._connect_to_signal(
+            self.vpn_connection_interface_path,
+            "StateChanged",
+            callback
+        )
+
+
+class NetworkManagerSettingsObjectPath(NetworkManagerDbusObjectPath):
+    """
+    Provides an easy way to talk to `/org/freedesktop/NetworkManager/Settings` dbus object.
+
+    .. code-block::
+        import dbus
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerSettingsObjectPath
+
+        nm = NetworkManagerSettingsObjectPath(dbus.SystemBus())
+    """
+    specific_object_path_prefix = "Settings"
+    _object_path = "/org/freedesktop/NetworkManager/" + specific_object_path_prefix
+    settings_interface_path = "org.freedesktop.NetworkManager.Settings"
+
+    @property
+    def properties(self) -> "dict":
+        """
+            :return: properties
+            :rtype: dict
+        """
+        return self.get_all_properties(self.settings_interface_path)
+
+    @property
+    def settings_interface(self) -> "dbus.proxies.Interface":
+        """
+            :return: proxy interface
+            :rtype: dbus.proxies.Interface
+        """
+        return self._get_interface_from_path(self.settings_interface_path)
+
+    @property
+    def stored_connections(self) -> "Generator[ConnectionSettingsObjectPath]":
+        """
+            :return: next stored connection
+            :rtype: ConnectionSettingsObjectPath
+        """
+        for stored_connection_object_path in self.settings_interface.ListConnections():
+            yield ConnectionSettingsObjectPath(
+                self.bus,
+                stored_connection_object_path.split("/")[-1]
+            )
 
     def _ensure_that_object_exists(self):
         self.properties
 
+    def connect_on_connection_removed(self, callback) -> "None":
+        """
+            :param callback: callback to receive when
+                `ConnectionRemoved` signal is emitted
+            :type callback: callable
+
+        Callback will return a object path of :type: str
+        """
+        self._connect_to_signal(
+            self.vpn_connection_interface_path,
+            "ConnectionRemoved",
+            callback
+        )
+
+    def connect_on_new_connection(self, callback) -> "None":
+        """
+            :param callback: callback to receive when
+                `NewConnection` signal is emitted
+            :type callback: callable
+
+        Callback will return a object path of :type: str
+        """
+        self._connect_to_signal(
+            self.vpn_connection_interface_path,
+            "NewConnection",
+            callback
+        )
+
 
 class DeviceObjectPath(NetworkManagerDbusObjectPath):
+    """
+    Provides an easy way to talk to `/org/freedesktop/NetworkManager/Devices/*` dbus objects.
+
+    .. code-block::
+        import dbus
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import DeviceObjectPath
+
+        device = "5"
+        nm = DeviceObjectPath(dbus.SystemBus(), device)
+    """
     specific_object_path_prefix = "Devices/"
 
     device_interface_path = "org.freedesktop.NetworkManager.Device"
@@ -154,32 +333,54 @@ class DeviceObjectPath(NetworkManagerDbusObjectPath):
     wired_interface_path = "org.freedesktop.NetworkManager.Device.Wired"
 
     @property
-    def device_interface(self):
+    def device_interface(self) -> "dbus.proxies.Interface":
+        """
+            :return: proxy interface
+            :rtype: dbus.proxies.Interface
+        """
         return self._get_interface_from_path(self.device_interface_path)
 
     @property
-    def device_generic_interface(self):
+    def device_generic_interface(self) -> "dbus.proxies.Interface":
+        """
+            :return: proxy interface
+            :rtype: dbus.proxies.Interface
+        """
         return self._get_interface_from_path(self.device_generic_interface_path)
 
     @property
-    def statistics_interface(self):
+    def statistics_interface(self) -> "dbus.proxies.Interface":
+        """
+            :return: proxy interface
+            :rtype: dbus.proxies.Interface
+        """
         return self._get_interface_from_path(self.statistics_interface_path)
 
     @property
-    def wired_interface(self):
+    def wired_interface(self) -> "dbus.proxies.Interface":
+        """
+            :return: proxy interface
+            :rtype: dbus.proxies.Interface
+        """
         return self._get_interface_from_path(self.wired_interface_path)
 
     @property
-    def available_connections(self):
+    def available_connections(self) -> "Generator[ConnectionSettingsObjectPath]":
+        """
+            :return: next available connection for this device
+            :rtype: ConnectionSettingsObjectPath
+        """
         for connection_settings_object_path in self.get_property(self.device_generic_interface, "AvailableConnections"):
             yield ConnectionSettingsObjectPath(self.bus, connection_settings_object_path.split("/")[-1])
 
-    def does_connection_belong_to_this_device(self, connection_settings_path):
+    def does_connection_belong_to_this_device(self, connection_settings_path: str) -> "bool":
         """
-        Args:
-            connection_settings_path (ConnectionSettingsObjectPath): connection settings object
+            :param connection_settings_path: object path to connection settings
+            :type connection_settings_path: str
+            :return: if provided connection belongs to this device or not
+            :rtype: bool
         """
-        if len(list(self.available_connections)) < 1 or connection_settings_path.object_path not in list(self.available_connections):
+        if len(list(self.available_connections)) < 1 or connection_settings_path not in [conn.object_path in self.available_connections]:
             return False
 
         return True
@@ -189,75 +390,148 @@ class DeviceObjectPath(NetworkManagerDbusObjectPath):
 
 
 class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
+    """
+    Provides an easy way to talk to `/org/freedesktop/NetworkManager/ActiveConnection/*` dbus objects.
+
+    .. code-block::
+        import dbus
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import ActiveConnectionObjectPath
+
+        active_connection = "99"
+        nm = ActiveConnectionObjectPath(dbus.SystemBus(), active_connection)
+    """
     specific_object_path_prefix = "ActiveConnection/"
 
     active_connection_interface_path = "org.freedesktop.NetworkManager.Connection.Active"
     vpn_connection_interface_path = "org.freedesktop.NetworkManager.VPN.Connection"
 
     @property
-    def properties(self) -> dict:
+    def properties(self) -> "dict":
+        """
+            :return: connection properties
+            :rtype: dict
+        """
         return self.get_all_properties(self.active_connection_interface_path)
 
     @property
-    def vpn_properties(self) -> dict:
-        return self.get_all_properties(self.vpn_connection_interface_path)
+    def vpn_properties(self) -> "dict":
+        """
+            :return: vpn properties
+            :rtype: dict
+
+        Since not all active connections are of type VPN, this will sometimes
+        return empty.
+        """
+        if self.is_vpn:
+            return self.get_all_properties(self.vpn_connection_interface_path)
+
+        return []
 
     @property
-    def connection_settings_object_path(self):
+    def connection_settings_object_path(self) -> "ConnectionSettingsObjectPath":
+        """
+            :return: connection settings for this active connection
+            :rtype: ConnectionSettingsObjectPath
+            :raises: RuntimeError if object does not exist/path is invalid
+        """
         return ConnectionSettingsObjectPath(
             self.bus,
             self.properties.get("Connection").split("/")[-1]
         )
 
     @property
-    def uuid(self):
+    def uuid(self) -> "str":
+        """
+            :return: unique id of this connection
+            :rtype: str
+        """
         return self.properties.get("Uuid")
 
     @property
-    def id(self):
+    def id(self) -> "str":
+        """
+            :return: human readeable id/name of this connection
+            :rtype: str
+        """
         return self.properties.get("Id")
 
     @property
-    def devices(self):
+    def devices(self) -> "Generator[DeviceObjectPath]":
+        """
+            :return: next available connection for this device
+            :rtype: DeviceObjectPath
+        """
         for device_object_path in self.properties.get("Devices"):
             yield DeviceObjectPath(self.bus, device_object_path.split("/")[-1])
 
     @property
-    def default_ipv4(self):
-        return self.properties.get("Default")
+    def default_ipv4(self) -> "bool":
+        """
+            :return: if this is the default ipv4 connection
+            :rtype: bool
+        """
+        return bool(self.properties.get("Default"))
 
     @property
-    def ipv4config(self):
+    def ipv4config(self) -> "dict":
+        """
+            :return: ipv4 settings
+            :rtype: dict
+        """
         return self.properties.get("Ip4Config")
 
     @property
-    def default_ipv6(self):
-        return self.properties.get("Default6")
+    def default_ipv6(self) -> "bool":
+        """
+            :return: if this is the default ipv6 connection
+            :rtype: bool
+        """
+        return bool(self.properties.get("Default6"))
 
     @property
-    def ipv6config(self):
+    def ipv6config(self) -> "dict":
+        """
+            :return: ipv6 settings
+            :rtype: dict
+        """
         return self.properties.get("Ip6Config")
 
     @property
-    def state(self):
+    def state(self) -> "NMActiveConnectionState":
+        """
+            :return: the current state of this connection
+            :rtype: NMActiveConnectionState
+        """
         from proton.vpn.backend.linux.networkmanager.enum import NMActiveConnectionState
         return NMActiveConnectionState(int(self.properties.get("State")))
 
     @property
-    def is_vpn(self):
-        # NMActiveConnectionState
-        # State 1 = a network connection is being prepared
-        # State 2 = there is a connection to the network
+    def is_vpn(self) -> "bool":
+        """
+            :return: if this active connection is of type vpn
+            :rtype: bool
+        """
         if self.properties.get("Type") == "vpn" or self.properties.get("Type") == "wireguard":
             return True
 
         return False
 
     @property
-    def active_connection_interface(self):
+    def active_connection_interface(self) -> "dbus.proxies.Interface":
+        """
+            :return: proxy interface
+            :rtype: dbus.proxies.Interface
+        """
         return self._get_interface_from_path(self.active_connection_interface_path)
 
     def connect_on_vpn_state_changed(self, callback):
+        """
+            :param callback: callback to receive when
+                vpn connection `VpnStateChanged` signal is emitted
+            :type callback: callable
+
+        Callback will return a two args of :type: int
+        """
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "VpnStateChanged",
@@ -265,6 +539,13 @@ class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
         )
 
     def connect_on_state_changed(self, callback):
+        """
+            :param callback: callback to receive when
+                connection `StateChanged` signal is emitted
+            :type callback: callable
+
+        Callback will return a two args of :type: int
+        """
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "StateChanged",
@@ -276,47 +557,128 @@ class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
 
 
 class ConnectionSettingsObjectPath(NetworkManagerDbusObjectPath):
+    """
+    Provides an easy way to talk to `/org/freedesktop/NetworkManager/Settings/*` dbus objects.
+
+    .. code-block::
+        import dbus
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import ConnectionSettingsObjectPath
+
+        connection_settings = "131"
+        nm = ConnectionSettingsObjectPath(dbus.SystemBus(), connection_settings)
+    """
     specific_object_path_prefix = "Settings/"
     connection_settings_interface_path = "org.freedesktop.NetworkManager.Settings.Connection"
 
     @property
-    def properties(self):
+    def properties(self) -> "dict":
+        """
+            :return: connection properties
+            :rtype: dict
+        """
         return self.get_all_properties(self.connection_settings_interface_path)
 
     @property
-    def settings(self):
-        return self.connection_settings_interface.GetSettings()
-
-    @property
-    def connection_settings_interface(self):
-        return self._get_interface_from_path(self.connection_settings_interface_path)
-
-    @property
-    def uuid(self):
+    def uuid(self) -> "str":
+        """
+            :return: unique id of this connection
+            :rtype: str
+        """
         return self.connection_settings.get("uuid")
 
     @property
-    def id(self):
+    def id(self) -> "str":
+        """
+            :return: human readeable id/name of this connection
+            :rtype: str
+        """
         return self.connection_settings.get("id")
 
     @property
-    def is_vpn(self):
+    def is_vpn(self) -> "bool":
+        """
+            :return: if this active connection is of type vpn
+            :rtype: bool
+        """
         if self.connection_settings.get("type") == "vpn" or self.connection_settings.get("type") == "wireguard":
             return True
 
         return False
 
     @property
-    def vpn_virtual_device(self):
+    def vpn_virtual_device(self) -> "str":
+        """
+            :return: the virtual device of a vpn connection
+            :rtype: str
+        """
         if not self.is_vpn or "dev" not in self.vpn_settings.get("data", {}):
-            return None
+            return ""
 
         return self.vpn_settings.get("data")["dev"]
 
     def delete_connection(self) -> None:
+        """Delete this connection"""
         self.connection_settings_interface.Delete()
 
+    @property
+    def connection_settings(self) -> "dict":
+        """
+            :return: connection settings
+            :rtype: dict
+        """
+        return self.__settings.get("connection", {})
+
+    @property
+    def vpn_settings(self) -> "dict":
+        """
+            :return: ipv4 settings
+            :rtype: dict
+
+        Since not all connections have vpn settings, this
+        will return an empty dict if there is none.
+        """
+        return self.__settings.get("vpn", {})
+
+    @property
+    def ipv4_settings(self) -> "dict":
+        """
+            :return: ipv4 settings
+            :rtype: dict
+        """
+        return self.__settings.get("ipv4", {})
+
+    @property
+    def ipv6_settings(self) -> "dict":
+        """
+            :return: ipv6 settings
+            :rtype: dict
+        """
+        return self.__settings.get("ipv6", {})
+
+    @property
+    def proxy_settings(self) -> "dict":
+        """
+            :return: proxy settings
+            :rtype: dict
+        """
+        return self.__settings.get("proxy", {})
+
+    @property
+    def __settings(self) -> "dict":
+        """
+            :return: connection settings
+            :rtype: dict
+        """
+        return self.connection_settings_interface.GetSettings()
+
     def connect_on_removed(self, callback):
+        """
+            :param callback: callback to receive when
+                `Removed` signal is emitted
+            :type callback: callable
+
+        No args should be expected
+        """
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "Removed",
@@ -324,6 +686,13 @@ class ConnectionSettingsObjectPath(NetworkManagerDbusObjectPath):
         )
 
     def connect_on_updated(self, callback):
+        """
+            :param callback: callback to receive when
+                `Updated` signal is emitted
+            :type callback: callable
+
+        No args should be expected
+        """
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "Updated",
@@ -331,24 +700,12 @@ class ConnectionSettingsObjectPath(NetworkManagerDbusObjectPath):
         )
 
     @property
-    def connection_settings(self):
-        return self.settings.get("connection", {})
-
-    @property
-    def vpn_settings(self):
-        return self.settings.get("vpn", {})
-
-    @property
-    def ipv4_settings(self):
-        return self.settings.get("ipv4", {})
-
-    @property
-    def ipv6_settings(self):
-        return self.settings.get("ipv6", {})
-
-    @property
-    def proxy_settings(self):
-        return self.settings.get("proxy", {})
+    def connection_settings_interface(self) -> "dbus.proxies.Interface":
+        """
+            :return: proxy interface
+            :rtype: dbus.proxies.Interface
+        """
+        return self._get_interface_from_path(self.connection_settings_interface_path)
 
     def _ensure_that_object_exists(self):
         self.properties

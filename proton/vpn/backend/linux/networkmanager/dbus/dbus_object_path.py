@@ -66,11 +66,11 @@ s
         except Exception as e:
             raise RuntimeError("Invalid object path {}\n{}".format(self._object_path, e))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "{} <\"{}\">".format(str(self.__class__.__name__), self.object_path)
 
     @property
-    def object_path(self) -> str:
+    def object_path(self) -> "str":
         """
             :return: dbus object path
             :rtype: str
@@ -78,7 +78,7 @@ s
         return self._object_path
 
     @property
-    def name(self):
+    def name(self) -> "str":
         """
             :return: name of the object
             :rtype: str
@@ -91,7 +91,7 @@ s
         return str(self.object_path.split("/")[-1])
 
     @property
-    def introspectable_interface(self):
+    def introspectable_interface(self) -> "dbus.proxies.Interface":
         """
             :return: proxy interface to org.freedesktop.DBus.Introspectable
             :rtype: dbus.proxies.Interface
@@ -102,7 +102,7 @@ s
         return self._get_interface_from_path(self.introspectable_interface_path)
 
     @property
-    def peer_interface(self):
+    def peer_interface(self) -> "dbus.proxies.Interface":
         """
             :return: proxy interface to org.freedesktop.DBus.Peer
             :rtype: dbus.proxies.Interface
@@ -126,7 +126,7 @@ s
             callback
         )
 
-    def get_property(self, interface: str, property: str) -> object:
+    def get_property(self, interface: str, property: str) -> "object":
         """
             :param interface: dbus interface name
             :type interface: str
@@ -139,7 +139,7 @@ s
 
         return properties_interface.Get(interface, property)
 
-    def get_all_properties(self, interface: str) -> dict:
+    def get_all_properties(self, interface: str) -> "dict":
         """
             :param interface: dbus interface name
             :type interface: str
@@ -151,7 +151,7 @@ s
 
         return properties_interface.GetAll(interface)
 
-    def set_property(self, interface: str, property: str, new_value: object):
+    def set_property(self, interface: str, property: str, new_value: object) -> "None":
         """
             :param interface: dbus interface name
             :type interface: str
@@ -197,12 +197,12 @@ s
         return dbus.Interface(self.__proxy_object, interface_name)
 
     @property
-    def __proxy_object(self):
+    def __proxy_object(self) -> "dbus.proxies.ProxyObject":
         """
         Gets the proxy object of the spcified interface name, based on object path.
 
             :return: proxy object
-            :rtype: dbus.proxies.ProxyObject(
+            :rtype: dbus.proxies.ProxyObject
         """
         # https://dbus.freedesktop.org/doc/dbus-python/tutorial.html#receiving-signals-from-a-proxy-object
         if not self.__cached_proxy_object:
