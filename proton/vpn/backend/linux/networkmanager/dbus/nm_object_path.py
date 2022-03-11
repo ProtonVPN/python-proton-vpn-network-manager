@@ -6,13 +6,14 @@ class NetworkManagerDbusObjectPath(DbusObjectPath):
     bus_name = "org.freedesktop.NetworkManager"
 
     def __init__(self, bus, object_path=None):
+        self.bus = bus
         try:
             if not self._object_path:
                 object_path = self.nm_object_path_prefix + self.specific_object_path_prefix + str(object_path)
         except AttributeError:
             object_path = self.nm_object_path_prefix + self.specific_object_path_prefix + str(object_path)
 
-        super().__init__(bus, self.bus_name, object_path)
+        super().__init__(self.bus, self.bus_name, object_path)
 
 
 class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
@@ -30,22 +31,27 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
 
     @property
     def active_connections(self):
-        return self.get_property(self.nm_interface_path, "ActiveConnections")
+        for active_connection_object_path in self.get_property(self.nm_interface_path, "ActiveConnections"):
+            yield ActiveConnectionObjectPath(
+                self.bus,
+                active_connection_object_path.split("/")[-1]
+            )
 
     @property
     def devices(self):
-        return self.networkmanager_interface.GetAllDevices()
+        for device_object_path in self.networkmanager_interface.GetAllDevices():
+            yield DeviceObjectPath(self.bus, device_object_path.split("/")[-1])
 
     def activate_connection(self, connection_settings_object_path, device_object_path, specific_object=None):
         """Activate existing connection.
 
         Args:
-            connection_settings_path (string): The connection to activate.
+            connection_settings_path (ActiveConnectionObjectPath): The connection to activate.
                 If "/" is given, a valid device path must be given, and
                 NetworkManager picks the best connection to activate for the
                 given device. VPN connections must alwayspass a valid
                 connection path.
-            device_path (string): The object path of device to be activated
+            device_path (DeviceObjectPath): The object path of device to be activated
                 for physical connections. This parameter is ignored for VPN
                 connections, because the specific_object (if provided)
                 specifies the device to use.
@@ -66,16 +72,21 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
             if connection was successfully activated
             or None if not.
         """
-        connection__object_path = self.networkmanager_interface.ActivateConnection(
-            connection_settings_object_path,
-            device_object_path,
+        connection_object_path = self.networkmanager_interface.ActivateConnection(
+            connection_settings_object_path.object_path,
+            device_object_path.object_path,
             specific_object if specific_object else "/"
         )
 
         return connection_object_path
 
     def disconnect_connection(self, active_connection_object_path):
-        self.networkmanager_interface.DeactivateConnection(active_connection_object_path)
+        """
+        Args:
+            active_connection_object_path(ActiveConnectionObjectPath): the active connection object
+
+        """
+        self.networkmanager_interface.DeactivateConnection(active_connection_object_path.object_path)
 
     def _ensure_that_object_exists(self):
         self.properties
@@ -96,7 +107,11 @@ class NetworkManagerSettingsObjectPath(NetworkManagerDbusObjectPath):
 
     @property
     def stored_connections(self):
-        return self.settings_interface.ListConnections()
+        for stored_connection_object_path in self.settings_interface.ListConnections():
+            yield ConnectionSettingsObjectPath(
+                self.bus,
+                stored_connection_object_path.split("/")[-1]
+            )
 
     def connect_on_check_permissions(self, callback) -> None:
         self._connect_to_signal(
@@ -156,10 +171,15 @@ class DeviceObjectPath(NetworkManagerDbusObjectPath):
 
     @property
     def available_connections(self):
-        return self.get_property(self.device_generic_interface, "AvailableConnections")
+        for connection_settings_object_path in self.get_property(self.device_generic_interface, "AvailableConnections"):
+            yield ConnectionSettingsObjectPath(self.bus, connection_settings_object_path.split("/")[-1])
 
     def does_connection_belong_to_this_device(self, connection_settings_path):
-        if len(self.available_connections) < 1 or connection_settings_path not in self.available_connections:
+        """
+        Args:
+            connection_settings_path (ConnectionSettingsObjectPath): connection settings object
+        """
+        if len(list(self.available_connections)) < 1 or connection_settings_path.object_path not in list(self.available_connections):
             return False
 
         return True
@@ -184,7 +204,10 @@ class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
 
     @property
     def connection_settings_object_path(self):
-        return self.properties.get("Connection")
+        return ConnectionSettingsObjectPath(
+            self.bus,
+            self.properties.get("Connection").split("/")[-1]
+        )
 
     @property
     def uuid(self):
@@ -196,7 +219,8 @@ class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
 
     @property
     def devices(self):
-        return self.properties.get("Devices")
+        for device_object_path in self.properties.get("Devices"):
+            yield DeviceObjectPath(self.bus, device_object_path.split("/")[-1])
 
     @property
     def default_ipv4(self):
@@ -216,14 +240,15 @@ class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
 
     @property
     def state(self):
-        return self.properties.get("State")
+        from proton.vpn.backend.linux.networkmanager.enum import NMActiveConnectionState
+        return NMActiveConnectionState(int(self.properties.get("State")))
 
     @property
     def is_vpn(self):
         # NMActiveConnectionState
         # State 1 = a network connection is being prepared
         # State 2 = there is a connection to the network
-        if self.properties.get("Type") == "vpn" and self.state == 2:
+        if self.properties.get("Type") == "vpn" or self.properties.get("Type") == "wireguard":
             return True
 
         return False
@@ -235,7 +260,7 @@ class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
     def connect_on_vpn_state_changed(self, callback):
         self._connect_to_signal(
             self.vpn_connection_interface_path,
-            "VPNStateChanged",
+            "VpnStateChanged",
             callback
         )
 
@@ -276,7 +301,7 @@ class ConnectionSettingsObjectPath(NetworkManagerDbusObjectPath):
 
     @property
     def is_vpn(self):
-        if self.connection_settings.get("type") == "vpn":
+        if self.connection_settings.get("type") == "vpn" or self.connection_settings.get("type") == "wireguard":
             return True
 
         return False

@@ -28,6 +28,10 @@ class DbusObjectPath:
         return self._object_path
 
     @property
+    def name(self):
+        return str(self.object_path.split("/")[-1])
+
+    @property
     def introspectable_interface(self):
         return self._get_interface_from_path(self.introspectable_interface_path)
 
@@ -61,7 +65,11 @@ class DbusObjectPath:
         properties_interface.Set(interface_name, property_name, new_property_value)
 
     def _connect_to_signal(self, interface, signal_name, callback):
-        interface.connect_to_signal(signal_name, method)
+        interface_obj = self._get_interface_from_path(interface)
+        interface_obj.connect_to_signal(
+            signal_name=None,
+            handler_function=callback,
+        )
 
     def _get_interface_from_path(self, interface_name: str) -> "dbus.proxies.Interface":
         """Get interface of proxy object.
