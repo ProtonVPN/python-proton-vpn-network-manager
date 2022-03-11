@@ -122,6 +122,45 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
                 active_connection_object_path.split("/")[-1]
             )
 
+    def search_for_connection(self, by_uuid=False, by_interface_name=False) -> "ConnectionSettingsObjectPath":
+        """
+            :param by_uuid: search based on uuid
+            :type by_uuid: string
+            :param by_interface_name: search based on virtual interface
+            :type by_interface_name: string
+            :return: connection settings of matching connection
+            :rtype: ConnectionSettingsObjectPath
+            :raises: RuntimeError if both args or no args are passed
+
+        Either `by_uuid` or `by_interface_name` has to be passed.
+        """
+        if not by_uuid and not by_interface_name or by_uuid and by_interface_name:
+            raise RuntimeError("Only one of the args should be passed")
+
+        active_connections = list(self.active_connections)
+        all_connection_list = list(NetworkManagerSettingsObjectPath(self.bus).stored_connections)
+        all_connection_list.extend(active_connections)
+
+        for connection in all_connection_list:
+            # active_connections provide path to active connections ie:
+            # /org/freedesktop/NetworkManager/ActiveConnection/*
+            # but we're need a path to connection settings ie:
+            # /org/freedesktop/NetworkManager/Settings/*
+
+            try:
+                connection = connection.connection_settings_object_path
+            except AttributeError:
+                pass
+
+            if (
+                by_uuid and by_uuid == connection.connection_uuid
+            ) or (
+                by_interface_name and by_interface_name == connection.vpn_virtual_device
+            ):
+                return connection
+
+        return ""
+
     @property
     def devices(self) -> "Generator[DeviceObjectPath]":
         """
@@ -281,6 +320,8 @@ class NetworkManagerSettingsObjectPath(NetworkManagerDbusObjectPath):
                 self.bus,
                 stored_connection_object_path.split("/")[-1]
             )
+
+    
 
     def _ensure_that_object_exists(self):
         self.properties
