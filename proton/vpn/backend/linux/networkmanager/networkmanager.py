@@ -1,13 +1,15 @@
-from dbus.mainloop.glib import DBusGMainLoop
+import gi
 from proton.vpn.backend.linux.networkmanager.enum import (
-    ConnectionStartStatusEnum, VPNConnectionReasonEnum, VPNConnectionStateEnum)
-from proton.vpn.connection import VPNConnection
-from proton.vpn.connection.enum import StateMachineEventEnum
+    VPNConnectionReasonEnum, VPNConnectionStateEnum)
+from proton.vpn.connection import VPNConnection, event
+
+from dbus.mainloop.glib import DBusGMainLoop
+
 from .monitor_vpn_start import MonitorVPNConnectionStart
 
-import gi
 gi.require_version("NM", "1.0")
 from gi.repository import NM
+
 from .nmclient import GLib, NMClient
 
 
@@ -49,11 +51,13 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
     def _start_connection_in_thread(self):
         self._setup()
-        # self._persist_connection()
+        self._persist_connection()
         self._start_connection_async(self._get_nm_connection())
+
+        # To catch signals from network manager, these are the necessary steps:
+        # https://dbus.freedesktop.org/doc/dbus-python/tutorial.html#setting-up-an-event-loop
         DBusGMainLoop(set_as_default=True)
         self.__dbus_loop = GLib.MainLoop()
-
         MonitorVPNConnectionStart(self._unique_id, self.proxy_on_vpn_state_changed)
         self.__dbus_loop.run()
 
@@ -62,12 +66,45 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         reason = VPNConnectionReasonEnum(reason)
 
         if state == VPNConnectionStateEnum.IS_ACTIVE:
-            self.on_event(StateMachineEventEnum.CONNECTED)
             self.__dbus_loop.quit()
+            self.on_event(event.Connected())
         elif state == VPNConnectionStateEnum.FAILED:
-            # FIX-ME: inform the state machine based on VPNConnectionReasonEnum reasons
-            print("Failed", state, reason)
-            self.__dbus_loop.quit()
+            if reason in [
+                VPNConnectionReasonEnum.CONN_ATTEMPT_TO_SERVICE_TIMED_OUT,
+                VPNConnectionReasonEnum.TIMEOUT_WHILE_STARTING_VPN_SERVICE_PROVIDER
+            ]:
+                self.__dbus_loop.quit()
+                self.on_event(event.Timeout(reason))
+            elif reason in [
+                VPNConnectionReasonEnum.SECRETS_WERE_NOT_PROVIDED,
+                VPNConnectionReasonEnum.SERVER_AUTH_FAILED
+            ]:
+                self.__dbus_loop.quit()
+                self.on_event(event.AuthDenied(reason))
+            elif reason in [
+                VPNConnectionReasonEnum.IP_CONFIG_WAS_INVALID,
+                VPNConnectionReasonEnum.SERVICE_PROVIDER_WAS_STOPPED,
+                VPNConnectionReasonEnum.CREATE_SOFTWARE_DEVICE_LINK_FAILED,
+                VPNConnectionReasonEnum.MASTER_CONN_FAILED_TO_ACTIVATE,
+                VPNConnectionReasonEnum.DELETED_FROM_SETTINGS,
+                VPNConnectionReasonEnum.START_SERVICE_VPN_CONN_SERVICE_FAILED,
+                VPNConnectionReasonEnum.VPN_DEVICE_DISAPPEARED
+            ]:
+                self.__dbus_loop.quit()
+                self.on_event(event.TunnelSetupFail(reason))
+            elif reason in [
+                VPNConnectionReasonEnum.DEVICE_WAS_DISCONNECTED,
+                VPNConnectionReasonEnum.USER_HAS_DISCONNECTED
+            ]:
+                self.__dbus_loop.quit()
+                self.on_event(event.Disconnected(reason))
+            elif reason in [
+                VPNConnectionReasonEnum.UNKNOWN,
+                VPNConnectionReasonEnum.NOT_PROVIDED
+            ]:
+                self.__dbus_loop.quit()
+                self.on_event(event.UnknownError(reason))
+
         elif state == VPNConnectionStateEnum.DISCONNECTED:
             print("Disconnected", state, reason)
             # FIX-ME: inform the state machine based on VPNConnectionReasonEnum reasons
