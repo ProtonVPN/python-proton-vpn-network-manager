@@ -11,51 +11,51 @@ class NetworkManagerBus:
         import dbus
         self.__bus = dbus.SystemBus()
 
-    def get_network_manager(self) -> "NetworkManagerObjectPath":
+    def get_network_manager(self) -> "NetworkManagerAdapter":
         """
             :return: dbus wrapper for `NetworkManager` object path
-            :rtype: NetworkManagerObjectPath
+            :rtype: NetworkManagerAdapter
         """
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerObjectPath 
-        return NetworkManagerObjectPath(self.__bus)
+        from proton.vpn.backend.linux.networkmanager.dbus.networkmanager_adapter import NetworkManagerAdapter
+        return NetworkManagerAdapter(self.__bus)
 
-    def get_network_manager_settings(self) -> "NetworkManagerSettingsObjectPath":
+    def get_network_manager_settings(self) -> "NetworkManagerSettingsAdapter":
         """
             :return: dbus wrapper for `NetworkManager/Settings` object path
-            :rtype: NetworkManagerSettingsObjectPath
+            :rtype: NetworkManagerSettingsAdapter
         """
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerSettingsObjectPath 
-        return NetworkManagerSettingsObjectPath(self.__bus)
+        from proton.vpn.backend.linux.networkmanager.dbus.networkmanager_adapter import NetworkManagerSettingsAdapter
+        return NetworkManagerSettingsAdapter(self.__bus)
 
-    def get_device(self, object_path: str) -> "DeviceObjectPath":
+    def get_device(self, object_path: str) -> "DeviceAdapter":
         """
             :param object_path: the name of the object path. Usually the
                 last element of an object path, preceded by the last `/`
             :type object_path: str
             :return: dbus wrapper for `NetworkManager/Devices/*` object path
-            :rtype: DeviceObjectPath
+            :rtype: DeviceAdapter
         """
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import DeviceObjectPath 
-        return DeviceObjectPath(self.__bus, str(object_path))
+        from proton.vpn.backend.linux.networkmanager.dbus.networkmanager_adapter import DeviceAdapter
+        return DeviceAdapter(self.__bus, str(object_path))
 
-    def get_active_connection(self, object_path: str) -> "ActiveConnectionObjectPath":
+    def get_active_connection(self, object_path: str) -> "ActiveConnectionAdapter":
         """
             :param object_path: the name of the object path. Usually the
                 last element of an object path, preceded by the last `/`
             :type object_path: str
             :return: dbus wrapper for `NetworkManager/ActiveConnection/*` object path
-            :rtype: ActiveConnectionObjectPath
+            :rtype: ActiveConnectionAdapter
         """
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import ActiveConnectionObjectPath 
-        return ActiveConnectionObjectPath(self.__bus, str(object_path))
+        from proton.vpn.backend.linux.networkmanager.dbus.networkmanager_adapter import ActiveConnectionAdapter
+        return ActiveConnectionAdapter(self.__bus, str(object_path))
 
-    def get_connection_settings(self, object_path: str) -> "ConnectionSettingsObjectPath":
+    def get_connection_settings(self, object_path: str) -> "ConnectionSettingsAdapter":
         """
             :param object_path: the name of the object path. Usually the
                 last element of an object path, preceded by the last `/`
             :type object_path: str
             :return: dbus wrapper for `NetworkManager/Settings/*` object path
-            :rtype: ConnectionSettingsObjectPath
+            :rtype: ConnectionSettingsAdapter
         """
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import ConnectionSettingsObjectPath 
-        return ConnectionSettingsObjectPath(self.__bus, str(object_path))
+        from proton.vpn.backend.linux.networkmanager.dbus.networkmanager_adapter import ConnectionSettingsAdapter
+        return ConnectionSettingsAdapter(self.__bus, str(object_path))

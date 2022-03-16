@@ -2,7 +2,7 @@ import dbus
 from abc import abstractmethod
 
 
-class DbusObjectPath:
+class BaseDbusAdapter:
     """
     Base class that should be derived  to create additional python objects for
     easy dbus communication.
@@ -14,11 +14,11 @@ class DbusObjectPath:
 
     It is also recommended that each sub-class implements a way so that
     not the entire object path is needed to be passed, but rather only the last
-    element of the path. Looking at the NetworkManagerDbusObjectPath code:
+    element of the path. Looking at the BaseNetworkManagerDbusAdapter code:
 
     .. code-block::
 
-        class NetworkManagerDbusObjectPath(DbusObjectPath):
+        class BaseNetworkManagerDbusAdapter(BaseDbusAdapter):
             nm_object_path_prefix = "/org/freedesktop/NetworkManager/"
             bus_name = "org.freedesktop.NetworkManager"
             specific_object_path_prefix = ""

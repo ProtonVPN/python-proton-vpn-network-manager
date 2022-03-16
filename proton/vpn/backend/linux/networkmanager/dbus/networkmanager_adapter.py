@@ -1,7 +1,7 @@
-from .dbus_object_path import DbusObjectPath
+from .dbus_adapter import BaseDbusAdapter
 
 
-class NetworkManagerDbusObjectPath(DbusObjectPath):
+class BaseNetworkManagerDbusAdapter(BaseDbusAdapter):
     """
     Base class from which all dbus object paths should derive from.
 
@@ -28,9 +28,9 @@ class NetworkManagerDbusObjectPath(DbusObjectPath):
 
     .. code-block::
 
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerDbusObjectPath
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import BaseNetworkManagerDbusAdapter
 
-        class NetworkManagerAgentManagerObjectPath(NetworkManagerDbusObjectPath):
+        class NetworkManagerAgentManagerObjectPath(BaseNetworkManagerDbusAdapter):
             specific_object_path_prefix = "AgentManager"
             _object_path = "/org/freedesktop/NetworkManager/" + specific_object_path_prefix
             example_interface = "org.freedesktop.NetworkManager.AgentManager"
@@ -50,9 +50,9 @@ class NetworkManagerDbusObjectPath(DbusObjectPath):
 
     .. code-block::
 
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerDbusObjectPath
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import BaseNetworkManagerDbusAdapter
 
-        class NetworkManagerIP4ObjectPath(NetworkManagerDbusObjectPath):
+        class NetworkManagerIP4ObjectPath(BaseNetworkManagerDbusAdapter):
             specific_object_path_prefix = "IP4Config/"
             _object_path = "/org/freedesktop/NetworkManager/" + specific_object_path_prefix
             example_interface = "org.freedesktop.NetworkManager.IP4Config"
@@ -80,15 +80,15 @@ class NetworkManagerDbusObjectPath(DbusObjectPath):
         super().__init__(self.bus, self.bus_name, object_path)
 
 
-class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
+class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
     """
     Provides an easy way to talk to `/org/freedesktop/NetworkManager` dbus object.
 
     .. code-block::
         import dbus
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerObjectPath
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerAdapter
 
-        nm = NetworkManagerObjectPath(dbus.SystemBus())
+        nm = NetworkManagerAdapter(dbus.SystemBus())
     """
     specific_object_path_prefix = ""
     _object_path = "/org/freedesktop/NetworkManager" + specific_object_path_prefix
@@ -111,34 +111,34 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
         return self._get_interface_from_path(self.nm_interface_path)
 
     @property
-    def active_connections(self) -> "Generator[ActiveConnectionObjectPath]":
+    def active_connections(self) -> "Generator[ActiveConnectionAdapter]":
         """
             :return: next active connection
-            :rtype: DeviceObjectPath
+            :rtype: ActiveConnectionAdapter
         """
         for active_connection_object_path in self.get_property(self.nm_interface_path, "ActiveConnections"):
-            yield ActiveConnectionObjectPath(
+            yield ActiveConnectionAdapter(
                 self.bus,
                 active_connection_object_path.split("/")[-1]
             )
 
-    def search_for_connection(self, by_uuid=False, by_interface_name=False) -> "ConnectionSettingsObjectPath":
+    def search_for_connection(self, uuid=None, interface_name=None) -> "ConnectionSettingsAdapter":
         """
-            :param by_uuid: search based on uuid
-            :type by_uuid: string
-            :param by_interface_name: search based on virtual interface
-            :type by_interface_name: string
+            :param uuid: search based on uuid
+            :type uuid: string
+            :param interface_name: search based on virtual interface
+            :type interface_name: string
             :return: connection settings of matching connection
-            :rtype: ConnectionSettingsObjectPath
+            :rtype: ConnectionSettingsAdapter
             :raises: RuntimeError if both args or no args are passed
 
-        Either `by_uuid` or `by_interface_name` has to be passed.
+        Either `uuid` or `by_interface_name` has to be passed.
         """
-        if not by_uuid and not by_interface_name or by_uuid and by_interface_name:
+        if not uuid and not interface_name or uuid and interface_name:
             raise RuntimeError("Only one of the args should be passed")
 
         active_connections = list(self.active_connections)
-        all_connection_list = list(NetworkManagerSettingsObjectPath(self.bus).stored_connections)
+        all_connection_list = list(NetworkManagerSettingsAdapter(self.bus).stored_connections)
         all_connection_list.extend(active_connections)
 
         for connection in all_connection_list:
@@ -148,27 +148,27 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
             # /org/freedesktop/NetworkManager/Settings/*
 
             try:
-                connection = connection.connection_settings_object_path
+                connection = connection.connection_settings_adapter
             except AttributeError:
                 pass
 
             if (
-                by_uuid and by_uuid == connection.connection_uuid
+                uuid and uuid == connection.connection_uuid
             ) or (
-                by_interface_name and by_interface_name == connection.vpn_virtual_device
+                interface_name and interface_name == connection.vpn_virtual_device
             ):
                 return connection
 
         return ""
 
     @property
-    def devices(self) -> "Generator[DeviceObjectPath]":
+    def devices(self) -> "Generator[DeviceAdapter]":
         """
             :return: next device object
-            :rtype: DeviceObjectPath
+            :rtype: DeviceAdapter
         """
         for device_object_path in self.networkmanager_interface.GetAllDevices():
-            yield DeviceObjectPath(self.bus, device_object_path.split("/")[-1])
+            yield DeviceAdapter(self.bus, device_object_path.split("/")[-1])
 
     def activate_connection(self, connection_settings_object_path, device_object_path, specific_object=None):
         """Activate existing connection.
@@ -199,7 +199,7 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
             :type specific_object: str
 
             :return: active connection
-            :rtype: ActiveConnectionObjectPath
+            :rtype: ActiveConnectionAdapter
         """
         connection_object_path = self.networkmanager_interface.ActivateConnection(
             connection_settings_object_path,
@@ -210,7 +210,7 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
         if not connection_object_path:
             return None
 
-        return ActiveConnectionObjectPath(connection_object_path)
+        return ActiveConnectionAdapter(connection_object_path)
 
     def disconnect_connection(self, active_connection_object_path):
         """
@@ -279,15 +279,15 @@ class NetworkManagerObjectPath(NetworkManagerDbusObjectPath):
         )
 
 
-class NetworkManagerSettingsObjectPath(NetworkManagerDbusObjectPath):
+class NetworkManagerSettingsAdapter(BaseNetworkManagerDbusAdapter):
     """
     Provides an easy way to talk to `/org/freedesktop/NetworkManager/Settings` dbus object.
 
     .. code-block::
         import dbus
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerSettingsObjectPath
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import NetworkManagerSettingsAdapter
 
-        nm = NetworkManagerSettingsObjectPath(dbus.SystemBus())
+        nm = NetworkManagerSettingsAdapter(dbus.SystemBus())
     """
     specific_object_path_prefix = "Settings"
     _object_path = "/org/freedesktop/NetworkManager/" + specific_object_path_prefix
@@ -310,18 +310,16 @@ class NetworkManagerSettingsObjectPath(NetworkManagerDbusObjectPath):
         return self._get_interface_from_path(self.settings_interface_path)
 
     @property
-    def stored_connections(self) -> "Generator[ConnectionSettingsObjectPath]":
+    def stored_connections(self) -> "Generator[ConnectionSettingsAdapter]":
         """
             :return: next stored connection
-            :rtype: ConnectionSettingsObjectPath
+            :rtype: ConnectionSettingsAdapter
         """
         for stored_connection_object_path in self.settings_interface.ListConnections():
-            yield ConnectionSettingsObjectPath(
+            yield ConnectionSettingsAdapter(
                 self.bus,
                 stored_connection_object_path.split("/")[-1]
             )
-
-    
 
     def _ensure_that_object_exists(self):
         self.properties
@@ -355,16 +353,16 @@ class NetworkManagerSettingsObjectPath(NetworkManagerDbusObjectPath):
         )
 
 
-class DeviceObjectPath(NetworkManagerDbusObjectPath):
+class DeviceAdapter(BaseNetworkManagerDbusAdapter):
     """
     Provides an easy way to talk to `/org/freedesktop/NetworkManager/Devices/*` dbus objects.
 
     .. code-block::
         import dbus
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import DeviceObjectPath
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import DeviceAdapter
 
         device = "5"
-        nm = DeviceObjectPath(dbus.SystemBus(), device)
+        nm = DeviceAdapter(dbus.SystemBus(), device)
     """
     specific_object_path_prefix = "Devices/"
 
@@ -406,13 +404,13 @@ class DeviceObjectPath(NetworkManagerDbusObjectPath):
         return self._get_interface_from_path(self.wired_interface_path)
 
     @property
-    def available_connections(self) -> "Generator[ConnectionSettingsObjectPath]":
+    def available_connections(self) -> "Generator[ConnectionSettingsAdapter]":
         """
             :return: next available connection for this device
-            :rtype: ConnectionSettingsObjectPath
+            :rtype: ConnectionSettingsAdapter
         """
         for connection_settings_object_path in self.get_property(self.device_generic_interface, "AvailableConnections"):
-            yield ConnectionSettingsObjectPath(self.bus, connection_settings_object_path.split("/")[-1])
+            yield ConnectionSettingsAdapter(self.bus, connection_settings_object_path.split("/")[-1])
 
     def does_connection_belong_to_this_device(self, connection_settings_path: str) -> "bool":
         """
@@ -430,16 +428,16 @@ class DeviceObjectPath(NetworkManagerDbusObjectPath):
         self.get_all_properties(self.device_interface_path)
 
 
-class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
+class ActiveConnectionAdapter(BaseNetworkManagerDbusAdapter):
     """
     Provides an easy way to talk to `/org/freedesktop/NetworkManager/ActiveConnection/*` dbus objects.
 
     .. code-block::
         import dbus
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import ActiveConnectionObjectPath
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import ActiveConnectionAdapter
 
         active_connection = "99"
-        nm = ActiveConnectionObjectPath(dbus.SystemBus(), active_connection)
+        nm = ActiveConnectionAdapter(dbus.SystemBus(), active_connection)
     """
     specific_object_path_prefix = "ActiveConnection/"
 
@@ -469,13 +467,13 @@ class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
         return []
 
     @property
-    def connection_settings_object_path(self) -> "ConnectionSettingsObjectPath":
+    def connection_settings_adapter(self) -> "ConnectionSettingsAdapter":
         """
             :return: connection settings for this active connection
-            :rtype: ConnectionSettingsObjectPath
+            :rtype: ConnectionSettingsAdapter
             :raises: RuntimeError if object does not exist/path is invalid
         """
-        return ConnectionSettingsObjectPath(
+        return ConnectionSettingsAdapter(
             self.bus,
             self.properties.get("Connection").split("/")[-1]
         )
@@ -497,13 +495,13 @@ class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
         return self.properties.get("Id")
 
     @property
-    def devices(self) -> "Generator[DeviceObjectPath]":
+    def devices(self) -> "Generator[DeviceAdapter]":
         """
             :return: next available connection for this device
-            :rtype: DeviceObjectPath
+            :rtype: DeviceAdapter
         """
         for device_object_path in self.properties.get("Devices"):
-            yield DeviceObjectPath(self.bus, device_object_path.split("/")[-1])
+            yield DeviceAdapter(self.bus, device_object_path.split("/")[-1])
 
     @property
     def default_ipv4(self) -> "bool":
@@ -597,16 +595,16 @@ class ActiveConnectionObjectPath(NetworkManagerDbusObjectPath):
         self.properties
 
 
-class ConnectionSettingsObjectPath(NetworkManagerDbusObjectPath):
+class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
     """
     Provides an easy way to talk to `/org/freedesktop/NetworkManager/Settings/*` dbus objects.
 
     .. code-block::
         import dbus
-        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import ConnectionSettingsObjectPath
+        from proton.vpn.backend.linux.networkmanager.dbus.nm_object_path import ConnectionSettingsAdapter
 
         connection_settings = "131"
-        nm = ConnectionSettingsObjectPath(dbus.SystemBus(), connection_settings)
+        nm = ConnectionSettingsAdapter(dbus.SystemBus(), connection_settings)
     """
     specific_object_path_prefix = "Settings/"
     connection_settings_interface_path = "org.freedesktop.NetworkManager.Settings.Connection"
