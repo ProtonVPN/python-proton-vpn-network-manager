@@ -1,16 +1,11 @@
-import gi
 from proton.vpn.backend.linux.networkmanager.enum import (
     VPNConnectionReasonEnum, VPNConnectionStateEnum)
 from proton.vpn.connection import VPNConnection, event
 
 from dbus.mainloop.glib import DBusGMainLoop
 
-from .monitor_vpn_start import MonitorVPNConnectionStart
-
-gi.require_version("NM", "1.0")
-from gi.repository import NM
-
-from .nmclient import GLib, NMClient
+from .connection_monitor import ConnectionMonitor
+from .nmclient import NM, GLib, NMClient, gi
 
 
 class LinuxNetworkManager(VPNConnection, NMClient):
@@ -57,7 +52,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         # https://dbus.freedesktop.org/doc/dbus-python/tutorial.html#setting-up-an-event-loop
         DBusGMainLoop(set_as_default=True)
         self.__dbus_loop = GLib.MainLoop()
-        MonitorVPNConnectionStart(
+        ConnectionMonitor(
             self._unique_id,
             self._proxy_on_vpn_state_changed
         )
@@ -113,9 +108,8 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             self.__dbus_loop.quit()
 
     def _determine_initial_state(self) -> "None":
-        from proton.vpn.connection.state import (
-            DisconnectedState, ConnectedState
-        )
+        from proton.vpn.connection.state import (ConnectedState,
+                                                 DisconnectedState)
 
         if self._get_nm_connection():
             self._update_connection_state(ConnectedState())
@@ -128,27 +122,17 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         thread.start()
 
     def _stop_connection_in_thread(self):
-        from proton.vpn.connection import event
-        import time
-        attempts_to_remove = 5
-        has_connection_been_removed = False
+        DBusGMainLoop(set_as_default=True)
+        self.__dbus_loop = GLib.MainLoop()
+        ConnectionMonitor(
+            self._unique_id,
+            self._act_on_if_has_connection_been_removed,
+            True
+        )
+        self.__dbus_loop.run()
 
-        while attempts_to_remove:
-            if not bool(attempts_to_remove):
-                break
-
-            try:
-                self._remove_connection_async(self._get_nm_connection())
-            except AttributeError:
-                pass
-
-            if not self._get_nm_connection():
-                has_connection_been_removed = True
-                break
-
-            attempts_to_remove -= 1
-            time.sleep(1)
-
+    def _act_on_if_has_connection_been_removed(self, has_connection_been_removed):
+        self.__dbus_loop.quit()
         if has_connection_been_removed:
             self.on_event(event.Disconnected())
         else:
@@ -169,12 +153,13 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
     @classmethod
     def _get_connection(cls):
+        from proton.vpn.connection.state import ConnectedState
         from proton.loader import Loader
         all_protocols = Loader.get_all("nm_protocol")
 
         for _p in all_protocols:
             vpnconnection = _p.cls(None, None)
-            if vpnconnection._get_nm_connection():
+            if vpnconnection.status.state == ConnectedState.state:
                 return vpnconnection
 
     @classmethod
