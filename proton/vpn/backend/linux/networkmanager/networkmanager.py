@@ -51,17 +51,19 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
     def _start_connection_in_thread(self):
         self._setup()
-        self._persist_connection()
         self._start_connection_async(self._get_nm_connection())
 
         # To catch signals from network manager, these are the necessary steps:
         # https://dbus.freedesktop.org/doc/dbus-python/tutorial.html#setting-up-an-event-loop
         DBusGMainLoop(set_as_default=True)
         self.__dbus_loop = GLib.MainLoop()
-        MonitorVPNConnectionStart(self._unique_id, self.proxy_on_vpn_state_changed)
+        MonitorVPNConnectionStart(
+            self._unique_id,
+            self._proxy_on_vpn_state_changed
+        )
         self.__dbus_loop.run()
 
-    def proxy_on_vpn_state_changed(self, state, reason):
+    def _proxy_on_vpn_state_changed(self, state, reason):
         state = VPNConnectionStateEnum(state)
         reason = VPNConnectionReasonEnum(reason)
 
@@ -110,21 +112,47 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             # FIX-ME: inform the state machine based on VPNConnectionReasonEnum reasons
             self.__dbus_loop.quit()
 
+    def _determine_initial_state(self) -> "None":
+        from proton.vpn.connection.state import (
+            DisconnectedState, ConnectedState
+        )
+
+        if self._get_nm_connection():
+            self._update_connection_state(ConnectedState())
+        else:
+            self._update_connection_state(DisconnectedState())
+
     def _stop_connection(self):
-        try:
-            self._remove_connection_async(self._get_nm_connection())
-        except AttributeError:
-            pass
+        import threading
+        thread = threading.Thread(target=self._stop_connection_in_thread)
+        thread.start()
 
-    @classmethod
-    def _get_connection(cls):
-        from proton.loader import Loader
-        all_protocols = Loader.get_all("nm_protocol")
+    def _stop_connection_in_thread(self):
+        from proton.vpn.connection import event
+        import time
+        attempts_to_remove = 5
+        has_connection_been_removed = False
 
-        for _p in all_protocols:
-            vpnconnection = _p.cls(None, None)
-            if vpnconnection._get_nm_connection():
-                return vpnconnection
+        while attempts_to_remove:
+            if not bool(attempts_to_remove):
+                break
+
+            try:
+                self._remove_connection_async(self._get_nm_connection())
+            except AttributeError:
+                pass
+
+            if not self._get_nm_connection():
+                has_connection_been_removed = True
+                break
+
+            attempts_to_remove -= 1
+            time.sleep(1)
+
+        if has_connection_been_removed:
+            self.on_event(event.Disconnected())
+        else:
+            self.on_event(event.UnknownError("Unable to disconnect"))
 
     def _get_servername(self) -> str:
         servername = "ProtonVPN Connection"
@@ -139,8 +167,15 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
         return servername
 
-    def _setup(self):
-        raise NotImplementedError
+    @classmethod
+    def _get_connection(cls):
+        from proton.loader import Loader
+        all_protocols = Loader.get_all("nm_protocol")
+
+        for _p in all_protocols:
+            vpnconnection = _p.cls(None, None)
+            if vpnconnection._get_nm_connection():
+                return vpnconnection
 
     @classmethod
     def _get_priority(cls):
@@ -196,8 +231,9 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             return None
 
         for conn in all_conn_list:
-            # Since a connection can be removed at any point, an AttributeError check try/catch
-            # has to be performed, ensuring that we keep this consistent
+            # Since a connection can be removed at any point, an AttributeError try/catch
+            # has to be performed, to ensure that a connection that existed previously
+            # was not removed.
             try:
                 if conn.get_connection_type() != "vpn" and conn.get_connection_type() != "wireguard":
                     continue
