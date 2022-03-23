@@ -153,7 +153,7 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
                 pass
 
             if (
-                uuid and uuid == connection.connection_uuid
+                uuid and uuid == connection.uuid
             ) or (
                 interface_name and interface_name == connection.vpn_virtual_device
             ):
@@ -222,7 +222,7 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
     def _ensure_that_object_exists(self):
         self.properties
 
-    def connect_on_device_added(self, callback) -> "None":
+    def connect_on_device_added(self, callback, **kwargs) -> "None":
         """
             :param callback: callback to receive when
                 `DeviceAdded` signal is emitted
@@ -231,12 +231,13 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
         Callback will return a object path of :type: str
         """
         self._connect_to_signal(
-            self.vpn_connection_interface_path,
+            self.nm_interface_path,
             "DeviceAdded",
-            callback
+            callback,
+            **kwargs
         )
 
-    def connect_on_device_removed(self, callback) -> "None":
+    def connect_on_device_removed(self, callback, **kwargs) -> "None":
         """
             :param callback: callback to receive when
                 `DeviceRemoved` signal is emitted
@@ -245,12 +246,13 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
         Callback will return a object path of :type: str
         """
         self._connect_to_signal(
-            self.vpn_connection_interface_path,
+            self.nm_interface_path,
             "DeviceRemoved",
-            callback
+            callback,
+            **kwargs
         )
 
-    def connect_on_check_permissions(self, callback) -> "None":
+    def connect_on_check_permissions(self, callback, **kwargs) -> "None":
         """
             :param callback: callback to receive when
                 `CheckPermissions` signal is emitted
@@ -259,12 +261,13 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
         No args should be expected
         """
         self._connect_to_signal(
-            self.vpn_connection_interface_path,
+            self.nm_interface_path,
             "CheckPermissions",
-            callback
+            callback,
+            **kwargs
         )
 
-    def connect_on_state_changed(self, callback) -> "None":
+    def connect_on_state_changed(self, callback, **kwargs) -> "None":
         """
             :param callback: callback to receive when
                 network `StateChanged` signal is emitted
@@ -273,9 +276,10 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
         Callback will return the network state of :type: int
         """
         self._connect_to_signal(
-            self.vpn_connection_interface_path,
+            self.nm_interface_path,
             "StateChanged",
-            callback
+            callback,
+            **kwargs
         )
 
 
@@ -324,7 +328,7 @@ class NetworkManagerSettingsAdapter(BaseNetworkManagerDbusAdapter):
     def _ensure_that_object_exists(self):
         self.properties
 
-    def connect_on_connection_removed(self, callback) -> "None":
+    def connect_on_connection_removed(self, callback, **kwargs) -> "None":
         """
             :param callback: callback to receive when
                 `ConnectionRemoved` signal is emitted
@@ -333,12 +337,13 @@ class NetworkManagerSettingsAdapter(BaseNetworkManagerDbusAdapter):
         Callback will return a object path of :type: str
         """
         self._connect_to_signal(
-            self.vpn_connection_interface_path,
+            self.settings_interface_path,
             "ConnectionRemoved",
-            callback
+            callback,
+            **kwargs
         )
 
-    def connect_on_new_connection(self, callback) -> "None":
+    def connect_on_new_connection(self, callback, **kwargs) -> "None":
         """
             :param callback: callback to receive when
                 `NewConnection` signal is emitted
@@ -347,9 +352,10 @@ class NetworkManagerSettingsAdapter(BaseNetworkManagerDbusAdapter):
         Callback will return a object path of :type: str
         """
         self._connect_to_signal(
-            self.vpn_connection_interface_path,
+            self.settings_interface_path,
             "NewConnection",
-            callback
+            callback,
+            **kwargs
         )
 
 
@@ -563,7 +569,7 @@ class ActiveConnectionAdapter(BaseNetworkManagerDbusAdapter):
         """
         return self._get_interface_from_path(self.active_connection_interface_path)
 
-    def connect_on_vpn_state_changed(self, callback):
+    def connect_on_vpn_state_changed(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 vpn connection `VpnStateChanged` signal is emitted
@@ -574,10 +580,11 @@ class ActiveConnectionAdapter(BaseNetworkManagerDbusAdapter):
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "VpnStateChanged",
-            callback
+            callback,
+            **kwargs
         )
 
-    def connect_on_state_changed(self, callback):
+    def connect_on_state_changed(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 connection `StateChanged` signal is emitted
@@ -588,7 +595,8 @@ class ActiveConnectionAdapter(BaseNetworkManagerDbusAdapter):
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "StateChanged",
-            callback
+            callback,
+            **kwargs
         )
 
     def _ensure_that_object_exists(self):
@@ -710,7 +718,7 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
         """
         return self.connection_settings_interface.GetSettings()
 
-    def connect_on_removed(self, callback):
+    def connect_on_removed(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 `Removed` signal is emitted
@@ -721,10 +729,11 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "Removed",
-            callback
+            callback,
+            **kwargs
         )
 
-    def connect_on_updated(self, callback):
+    def connect_on_updated(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 `Updated` signal is emitted
@@ -735,7 +744,8 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
         self._connect_to_signal(
             self.vpn_connection_interface_path,
             "Updated",
-            callback
+            callback,
+            **kwargs
         )
 
     @property

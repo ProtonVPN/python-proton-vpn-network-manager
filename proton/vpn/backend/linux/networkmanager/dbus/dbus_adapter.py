@@ -164,7 +164,7 @@ s
         properties_interface = self._get_interface_from_path(self.properties_interface_path)
         properties_interface.Set(interface, property, new_value)
 
-    def _connect_to_signal(self, interface, signal_name, callback):
+    def _connect_to_signal(self, interface, signal_name, callback, **kwargs):
         """
             :param interface: dbus interface name
             :type interface: str
@@ -180,8 +180,9 @@ s
         # https://dbus.freedesktop.org/doc/dbus-python/tutorial.html#getting-more-information-from-a-signal
         interface_obj = self._get_interface_from_path(interface)
         interface_obj.connect_to_signal(
-            signal_name=None,
+            signal_name=signal_name,
             handler_function=callback,
+            **kwargs
         )
 
     def _get_interface_from_path(self, interface_name: str) -> "dbus.proxies.Interface":
