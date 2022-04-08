@@ -12,7 +12,7 @@ class ConnectionMonitor:
         if not connection_set_down:
             self.monitor_on_set_up(callback)
         else:
-            self.monitor_on_set_dow(callback)
+            self.monitor_on_set_down(callback)
 
     def monitor_on_set_up(self, callback):
         for active_conn in self.nm_bus.get_network_manager().active_connections:
@@ -23,7 +23,7 @@ class ConnectionMonitor:
                     callback(5, 0)
                 break
 
-    def monitor_on_set_dow(self, callback):
+    def monitor_on_set_down(self, callback):
         conn = self.nm_bus.get_network_manager().search_for_connection(self.uuid)
         if conn:
             self.__to_be_removed_object_path = conn.object_path

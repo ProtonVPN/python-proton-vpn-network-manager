@@ -4,6 +4,7 @@ from gi.repository import NM, GLib
 
 
 class NMClient:
+    nm_client = None
 
     def __init__(self):
         self.result = False
