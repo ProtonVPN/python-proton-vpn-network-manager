@@ -1,6 +1,6 @@
 from proton.vpn.backend.linux.networkmanager.enum import (
     VPNConnectionReasonEnum, VPNConnectionStateEnum)
-from proton.vpn.connection import VPNConnection, event
+from proton.vpn.connection import VPNConnection, events
 
 from dbus.mainloop.glib import DBusGMainLoop
 
@@ -29,17 +29,18 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
         Returns vpn connection based on specified procotol from factory.
         """
+        from proton.vpn.connection.exceptions import MissingProtocolDetails
         from proton.loader import Loader
-        all_protocols = Loader.get_all("nm_protocol")
 
-        if not all_protocols:
-            return None
+        all_protocols = Loader.get_all("nm_protocol")
 
         for _p in all_protocols:
             if _p.class_name == protocol and _p.cls._validate():
                 return _p.cls
 
-    def _start_connection(self):
+        raise MissingProtocolDetails("Could not find {} protocol".format(protocol))
+
+    def start_connection(self):
         import threading
         thread = threading.Thread(target=self._start_connection_in_thread)
         thread.start()
@@ -54,30 +55,45 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         self.__dbus_loop = GLib.MainLoop()
         ConnectionMonitor(
             self._unique_id,
-            self._proxy_on_vpn_state_changed
+            self.__proxy_on_vpn_state_changed
         )
         self.__dbus_loop.run()
 
-    def _proxy_on_vpn_state_changed(self, state, reason):
+    def stop_connection(self):
+        import threading
+        thread = threading.Thread(target=self._stop_connection_in_thread)
+        thread.start()
+
+    def _stop_connection_in_thread(self):
+        DBusGMainLoop(set_as_default=True)
+        self.__dbus_loop = GLib.MainLoop()
+        ConnectionMonitor(
+            self._unique_id,
+            self.on_connection_is_removed,
+            True
+        )
+        self.__dbus_loop.run()
+
+    def __proxy_on_vpn_state_changed(self, state, reason):
         state = VPNConnectionStateEnum(state)
         reason = VPNConnectionReasonEnum(reason)
 
         if state == VPNConnectionStateEnum.IS_ACTIVE:
             self.__dbus_loop.quit()
-            self.on_event(event.Connected())
+            self.on_event(events.Connected())
         elif state == VPNConnectionStateEnum.FAILED:
             if reason in [
                 VPNConnectionReasonEnum.CONN_ATTEMPT_TO_SERVICE_TIMED_OUT,
                 VPNConnectionReasonEnum.TIMEOUT_WHILE_STARTING_VPN_SERVICE_PROVIDER
             ]:
                 self.__dbus_loop.quit()
-                self.on_event(event.Timeout(reason))
+                self.on_event(events.Timeout(reason))
             elif reason in [
                 VPNConnectionReasonEnum.SECRETS_WERE_NOT_PROVIDED,
                 VPNConnectionReasonEnum.SERVER_AUTH_FAILED
             ]:
                 self.__dbus_loop.quit()
-                self.on_event(event.AuthDenied(reason))
+                self.on_event(events.AuthDenied(reason))
             elif reason in [
                 VPNConnectionReasonEnum.IP_CONFIG_WAS_INVALID,
                 VPNConnectionReasonEnum.SERVICE_PROVIDER_WAS_STOPPED,
@@ -88,55 +104,49 @@ class LinuxNetworkManager(VPNConnection, NMClient):
                 VPNConnectionReasonEnum.VPN_DEVICE_DISAPPEARED
             ]:
                 self.__dbus_loop.quit()
-                self.on_event(event.TunnelSetupFail(reason))
+                self.on_event(events.TunnelSetupFail(reason))
             elif reason in [
                 VPNConnectionReasonEnum.DEVICE_WAS_DISCONNECTED,
                 VPNConnectionReasonEnum.USER_HAS_DISCONNECTED
             ]:
                 self.__dbus_loop.quit()
-                self.on_event(event.Disconnected(reason))
+                self.on_event(events.Disconnected(reason))
             elif reason in [
                 VPNConnectionReasonEnum.UNKNOWN,
                 VPNConnectionReasonEnum.NOT_PROVIDED
             ]:
                 self.__dbus_loop.quit()
-                self.on_event(event.UnknownError(reason))
+                self.on_event(events.UnknownError(reason))
 
         elif state == VPNConnectionStateEnum.DISCONNECTED:
-            print("Disconnected", state, reason)
-            # FIX-ME: inform the state machine based on VPNConnectionReasonEnum reasons
             self.__dbus_loop.quit()
+            self.on_event(events.Disconnected(reason))
 
-    def _determine_initial_state(self) -> "None":
-        from proton.vpn.connection.state import (ConnectedState,
-                                                 DisconnectedState)
-
-        if self._get_nm_connection():
-            self._update_connection_state(ConnectedState())
-        else:
-            self._update_connection_state(DisconnectedState())
-
-    def _stop_connection(self):
-        import threading
-        thread = threading.Thread(target=self._stop_connection_in_thread)
-        thread.start()
-
-    def _stop_connection_in_thread(self):
-        DBusGMainLoop(set_as_default=True)
-        self.__dbus_loop = GLib.MainLoop()
-        ConnectionMonitor(
-            self._unique_id,
-            self._act_on_if_has_connection_been_removed,
-            True
-        )
-        self.__dbus_loop.run()
-
-    def _act_on_if_has_connection_been_removed(self, has_connection_been_removed):
+    def on_connection_is_removed(self, has_connection_been_removed):
         self.__dbus_loop.quit()
         if has_connection_been_removed:
-            self.on_event(event.Disconnected())
+            self.on_event(events.Disconnected())
         else:
-            self.on_event(event.UnknownError("Unable to disconnect"))
+            self.on_event(events.UnknownError("Unable to disconnect"))
+
+    @classmethod
+    def _get_connection(cls):
+        from proton.vpn.connection import states
+        from proton.loader import Loader
+        all_protocols = Loader.get_all("nm_protocol")
+
+        for _p in all_protocols:
+            vpnconnection = _p.cls(None, None)
+            if vpnconnection.status.state == states.Connected.state:
+                return vpnconnection
+
+    def determine_initial_state(self) -> "None":
+        from proton.vpn.connection import states
+
+        if self._get_nm_connection():
+            self.update_connection_state(states.Connected())
+        else:
+            self.update_connection_state(states.Disconnected())
 
     def _get_servername(self) -> str:
         servername = "ProtonVPN Connection"
@@ -147,20 +157,12 @@ class LinuxNetworkManager(VPNConnection, NMClient):
                 else "Connection"
             )
         except AttributeError:
-            pass
+            servername = "ProtonVPN Connection"
 
         return servername
 
-    @classmethod
-    def _get_connection(cls):
-        from proton.vpn.connection.state import ConnectedState
-        from proton.loader import Loader
-        all_protocols = Loader.get_all("nm_protocol")
-
-        for _p in all_protocols:
-            vpnconnection = _p.cls(None, None)
-            if vpnconnection.status.state == ConnectedState.state:
-                return vpnconnection
+    def _setup(self):
+        raise NotImplementedError
 
     @classmethod
     def _get_priority(cls):
@@ -175,16 +177,18 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         plugin_info = NM.VpnPluginInfo
         vpn_plugin_list = plugin_info.list_load()
 
+        connection = None
         with vpnconfig as filename:
             for plugin in vpn_plugin_list:
                 plugin_editor = plugin.load_editor_plugin()
                 # return a NM.SimpleConnection (NM.Connection)
                 # https://lazka.github.io/pgi-docs/NM-1.0/classes/SimpleConnection.html
                 try:
-                    connection = plugin_editor.import_(filename)
                     # plugin_name = plugin.props.name
+                    connection = plugin_editor.import_(filename)
+                    break
                 except gi.repository.GLib.Error:
-                    pass
+                    continue
 
         if connection is None:
             raise NotImplementedError(
@@ -206,29 +210,42 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             - NetworkManagerConnectionTypeEnum.ACTIVE: NM.ActiveConnection
         """
 
-        active_conn_list = self.nm_client.get_active_connections()
-        non_active_conn_list = self.nm_client.get_connections()
-
-        all_conn_list = active_conn_list + non_active_conn_list
-
         self._ensure_unique_id_is_set()
         if not self._unique_id:
             return None
 
+        # Gets all active connections
+        active_conn_list = self.nm_client.get_active_connections()
+        # Gets all non-active stored connections
+        non_active_conn_list = self.nm_client.get_connections()
+
+        # The reason for having this difference is because NM can
+        # have active connections that are not stored, thus after
+        # stopping/disabling such a connection it is removed from
+        # NM, thus the distinction of active connections
+        # vs "regular" connections.
+
+        all_conn_list = active_conn_list + non_active_conn_list
+
         for conn in all_conn_list:
             # Since a connection can be removed at any point, an AttributeError try/catch
-            # has to be performed, to ensure that a connection that existed previously
-            # was not removed.
+            # has to be performed, to ensure that a connection that existed previously when
+            # doing the `if` statement was not removed.
             try:
                 if conn.get_connection_type() != "vpn" and conn.get_connection_type() != "wireguard":
                     continue
 
+                # If it's an active connection then we attempt to get
+                # its stored connection. If an AttributeError is raised
+                # then it means that the conneciton is a stored connection
+                # and not an active connection, and thus the exception
+                # can be skipped.
                 try:
                     conn = conn.get_connection()
                 except AttributeError:
                     pass
 
-                if conn.get_uuid() == self._unique_id:
+                if self._unique_id == conn.get_uuid():
                     return conn
             except AttributeError:
                 pass

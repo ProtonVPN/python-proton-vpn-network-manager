@@ -10,3 +10,4 @@ __SOURCE_APP
 cov.xml
 html
 .vscode
+.coverage
