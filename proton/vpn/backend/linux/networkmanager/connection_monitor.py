@@ -1,5 +1,6 @@
 from proton.vpn.backend.linux.networkmanager.dbus import NetworkManagerBus
-from proton.vpn.backend.linux.networkmanager.enum import NMActiveConnectionState
+from proton.vpn.backend.linux.networkmanager.enum import (
+    NMActiveConnectionState, VPNConnectionReasonEnum, VPNConnectionStateEnum)
 
 
 class ConnectionMonitor:
@@ -20,7 +21,10 @@ class ConnectionMonitor:
                 if active_conn.state == NMActiveConnectionState.ACTIVATING:
                     active_conn.connect_on_vpn_state_changed(callback)
                 elif active_conn.state == NMActiveConnectionState.ACTIVATED:
-                    callback(5, 0)
+                    callback(
+                        VPNConnectionStateEnum.IS_ACTIVE,
+                        VPNConnectionReasonEnum.NOT_PROVIDED
+                    )
                 break
 
     def monitor_on_set_down(self, callback):
