@@ -16,7 +16,6 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
     A LinuxNetworkManager can return a VPNConnection based on protocols such as OpenVPN, IKEv2 or Wireguard.
     """
-
     backend = "linuxnetworkmanager"
 
     def __init__(self, *args, **kwargs):
@@ -27,7 +26,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
     def factory(cls, protocol: str = None):
         """Get VPN connection.
 
-        Returns vpn connection based on specified procotol from factory.
+            Returns vpn connection based on specified procotol from factory.
         """
         from proton.vpn.connection.exceptions import MissingProtocolDetails
         from proton.loader import Loader
@@ -55,7 +54,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         self.__dbus_loop = GLib.MainLoop()
         ConnectionMonitor(
             self._unique_id,
-            self.__proxy_on_vpn_state_changed
+            self.__on_vpn_state_changed
         )
         self.__dbus_loop.run()
 
@@ -74,7 +73,17 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         )
         self.__dbus_loop.run()
 
-    def __proxy_on_vpn_state_changed(self, state, reason):
+    def __on_vpn_state_changed(self, state: "int", reason: "int"):
+        """
+            When the vpn state changes, NM emits a signal with the state and reason
+            for the change. This callback will receive these updates and translate for
+            them accordingly for the state machine, as the state machine is backend agnostic.
+
+            :type state: connection state update
+            :type state: int
+            :type reason: the reason for the state update
+            :type reason: int
+        """
         state = VPNConnectionStateEnum(state)
         reason = VPNConnectionReasonEnum(reason)
 
@@ -122,7 +131,14 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             self.__dbus_loop.quit()
             self.on_event(events.Disconnected(reason))
 
-    def on_connection_is_removed(self, has_connection_been_removed):
+    def on_connection_is_removed(self, has_connection_been_removed: "bool"):
+        """
+            This callback is called when the vpn conneciton is removed from NetworkManager,
+            but the arg is the one that actually confirms if the connection was succesfully
+            or not. This will then update the state machine according to the value received.
+
+            :type has_connection_been_removed: bool
+        """
         self.__dbus_loop.quit()
         if has_connection_been_removed:
             self.on_event(events.Disconnected())
@@ -141,6 +157,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
                 return vpnconnection
 
     def determine_initial_state(self) -> "None":
+        """Determines the initial state of the state machine"""
         from proton.vpn.connection import states
 
         if self._get_nm_connection():
@@ -148,7 +165,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         else:
             self.update_connection_state(states.Disconnected())
 
-    def _get_servername(self) -> str:
+    def _get_servername(self) -> "str":
         servername = "ProtonVPN Connection"
         try:
             servername = "ProtonVPN {}".format(
@@ -162,6 +179,11 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         return servername
 
     def _setup(self):
+        """
+            Every protocol derived from this class has to override this method
+            in order to have it working. Look at `_start_connection_in_thread`
+            on how this is used.
+        """
         raise NotImplementedError
 
     @classmethod
@@ -173,7 +195,14 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         # FIX ME: This should do a validation to ensure that NM can be used
         return True
 
-    def _import_vpn_config(self, vpnconfig):
+    def _import_vpn_config(self, vpnconfig: "proton.vpn.connection.vpnconfiguration.VPNConfiguration") -> "NM.SimpleConnection":
+        """
+            Imports the vpn connection configurations into NM
+            and stores the connection on non-volatile memory.
+
+            :return: imported vpn connection
+            :rtype: NM.SimpleConnection
+        """
         plugin_info = NM.VpnPluginInfo
         vpn_plugin_list = plugin_info.list_load()
 
@@ -204,10 +233,8 @@ class LinuxNetworkManager(VPNConnection, NMClient):
     def _get_nm_connection(self):
         """Get ProtonVPN connection.
 
-        Returns:
-            if:
-            - NetworkManagerConnectionTypeEnum.ALL: NM.RemoteConnection
-            - NetworkManagerConnectionTypeEnum.ACTIVE: NM.ActiveConnection
+        :return: vpn connection
+        :rtype: NM.RemoteConnection
         """
 
         self._ensure_unique_id_is_set()
@@ -220,10 +247,9 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         non_active_conn_list = self.nm_client.get_connections()
 
         # The reason for having this difference is because NM can
-        # have active connections that are not stored, thus after
-        # stopping/disabling such a connection it is removed from
-        # NM, thus the distinction of active connections
-        # vs "regular" connections.
+        # have active connections that are not stored. If such
+        # connection is stopped/disabled then it is removed from
+        # NM, and thus the distinction between active and "regular" connections.
 
         all_conn_list = active_conn_list + non_active_conn_list
 
@@ -232,14 +258,17 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             # has to be performed, to ensure that a connection that existed previously when
             # doing the `if` statement was not removed.
             try:
-                if conn.get_connection_type() != "vpn" and conn.get_connection_type() != "wireguard":
+                if (
+                    conn.get_connection_type().lower() != "vpn"
+                    and conn.get_connection_type().lower() != "wireguard"
+                ):
                     continue
 
                 # If it's an active connection then we attempt to get
                 # its stored connection. If an AttributeError is raised
                 # then it means that the conneciton is a stored connection
                 # and not an active connection, and thus the exception
-                # can be skipped.
+                # can be safely ignored.
                 try:
                     conn = conn.get_connection()
                 except AttributeError:

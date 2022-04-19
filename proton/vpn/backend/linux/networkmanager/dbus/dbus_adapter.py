@@ -151,7 +151,7 @@ s
 
         return properties_interface.GetAll(interface)
 
-    def set_property(self, interface: str, property: str, new_value: object) -> "None":
+    def set_property(self, interface: str, property: str, new_value: object):
         """
             :param interface: dbus interface name
             :type interface: str

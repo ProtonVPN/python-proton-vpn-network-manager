@@ -222,11 +222,10 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
     def _ensure_that_object_exists(self):
         self.properties
 
-    def connect_on_device_added(self, callback, **kwargs) -> "None":
+    def connect_on_device_added(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 `DeviceAdded` signal is emitted
-            :type callback: callable
 
         Callback will return a object path of :type: str
         """
@@ -237,11 +236,10 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
             **kwargs
         )
 
-    def connect_on_device_removed(self, callback, **kwargs) -> "None":
+    def connect_on_device_removed(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 `DeviceRemoved` signal is emitted
-            :type callback: callable
 
         Callback will return a object path of :type: str
         """
@@ -252,13 +250,10 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
             **kwargs
         )
 
-    def connect_on_check_permissions(self, callback, **kwargs) -> "None":
+    def connect_on_check_permissions(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 `CheckPermissions` signal is emitted
-            :type callback: callable
-
-        No args should be expected
         """
         self._connect_to_signal(
             self.nm_interface_path,
@@ -267,11 +262,10 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
             **kwargs
         )
 
-    def connect_on_state_changed(self, callback, **kwargs) -> "None":
+    def connect_on_state_changed(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 network `StateChanged` signal is emitted
-            :type callback: callable
 
         Callback will return the network state of :type: int
         """
@@ -328,11 +322,10 @@ class NetworkManagerSettingsAdapter(BaseNetworkManagerDbusAdapter):
     def _ensure_that_object_exists(self):
         self.properties
 
-    def connect_on_connection_removed(self, callback, **kwargs) -> "None":
+    def connect_on_connection_removed(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 `ConnectionRemoved` signal is emitted
-            :type callback: callable
 
         Callback will return a object path of :type: str
         """
@@ -343,11 +336,10 @@ class NetworkManagerSettingsAdapter(BaseNetworkManagerDbusAdapter):
             **kwargs
         )
 
-    def connect_on_new_connection(self, callback, **kwargs) -> "None":
+    def connect_on_new_connection(self, callback, **kwargs):
         """
             :param callback: callback to receive when
                 `NewConnection` signal is emitted
-            :type callback: callable
 
         Callback will return a object path of :type: str
         """
@@ -573,7 +565,6 @@ class ActiveConnectionAdapter(BaseNetworkManagerDbusAdapter):
         """
             :param callback: callback to receive when
                 vpn connection `VpnStateChanged` signal is emitted
-            :type callback: callable
 
         Callback will return a two args of :type: int
         """
@@ -588,7 +579,6 @@ class ActiveConnectionAdapter(BaseNetworkManagerDbusAdapter):
         """
             :param callback: callback to receive when
                 connection `StateChanged` signal is emitted
-            :type callback: callable
 
         Callback will return a two args of :type: int
         """
@@ -722,9 +712,6 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
         """
             :param callback: callback to receive when
                 `Removed` signal is emitted
-            :type callback: callable
-
-        No args should be expected
         """
         self._connect_to_signal(
             self.vpn_connection_interface_path,
@@ -737,9 +724,6 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
         """
             :param callback: callback to receive when
                 `Updated` signal is emitted
-            :type callback: callable
-
-        No args should be expected
         """
         self._connect_to_signal(
             self.vpn_connection_interface_path,

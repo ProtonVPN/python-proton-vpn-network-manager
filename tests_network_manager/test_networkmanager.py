@@ -213,6 +213,8 @@ def uninstantiated_patched_nm():
 
     networkmanager.LinuxNetworkManager.nm_client = MockNMClient()
     networkmanager.LinuxNetworkManager._persistence_prefix = "mock-prefix_"
+    networkmanager.LinuxNetworkManager.protocol = "mock-protocol"
+    networkmanager.LinuxNetworkManager.backend = "mock-backend"
     networkmanager.LinuxNetworkManager._unique_id = "mock-unique-id"
 
     yield networkmanager.LinuxNetworkManager
@@ -434,7 +436,7 @@ def test_on_expected_state_changed(uninstantiated_patched_nm, state, reason, exp
 
     assert nm.status.state == states.Connecting().state
 
-    nm._LinuxNetworkManager__proxy_on_vpn_state_changed(state, reason)
+    nm._LinuxNetworkManager__on_vpn_state_changed(state, reason)
     assert nm.status.state == expected_state.state
 
     uninstantiated_patched_nm.determine_initial_state = x
