@@ -18,9 +18,14 @@ class LinuxNetworkManager(VPNConnection, NMClient):
     """
     backend = "linuxnetworkmanager"
 
-    def __init__(self, *args, **kwargs):
-        NMClient.__init__(self)
-        VPNConnection.__init__(self, *args, **kwargs)
+    @property
+    def nm_client(self):
+        try:
+            return self.__nm_client
+        except AttributeError:
+            self.__nm_client = NMClient()
+
+        return self.__nm_client
 
     @classmethod
     def factory(cls, protocol: str = None):
@@ -46,7 +51,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
     def _start_connection_in_thread(self):
         self._setup()
-        self._start_connection_async(self._get_nm_connection())
+        self.nm_client._start_connection_async(self._get_nm_connection())
 
         # To catch signals from network manager, these are the necessary steps:
         # https://dbus.freedesktop.org/doc/dbus-python/tutorial.html#setting-up-an-event-loop
@@ -54,7 +59,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         self.__dbus_loop = GLib.MainLoop()
         ConnectionMonitor(
             self._unique_id,
-            self.__on_vpn_state_changed
+            self.on_vpn_state_changed
         )
         self.__dbus_loop.run()
 
@@ -73,7 +78,7 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         )
         self.__dbus_loop.run()
 
-    def __on_vpn_state_changed(self, state: "int", reason: "int"):
+    def on_vpn_state_changed(self, state: "int", reason: "int"):
         """
             When the vpn state changes, NM emits a signal with the state and reason
             for the change. This callback will receive these updates and translate for
@@ -236,15 +241,14 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         :return: vpn connection
         :rtype: NM.RemoteConnection
         """
-
         self._ensure_unique_id_is_set()
         if not self._unique_id:
             return None
 
         # Gets all active connections
-        active_conn_list = self.nm_client.get_active_connections()
+        active_conn_list = self.nm_client.nm_client.get_active_connections()
         # Gets all non-active stored connections
-        non_active_conn_list = self.nm_client.get_connections()
+        non_active_conn_list = self.nm_client.nm_client.get_connections()
 
         # The reason for having this difference is because NM can
         # have active connections that are not stored. If such

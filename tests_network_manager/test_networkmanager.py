@@ -103,10 +103,7 @@ class MockActiveConnection(MockBaseNMConnection):
         return MockRegisteredConnection(self.get_uuid())
 
 
-class MockNMClient:
-    def __init__(self, *args):
-        pass
-
+class MockNM:
     def get_active_connections(self):
         return [
             MockActiveConnection("test-active-uuid1"),
@@ -118,6 +115,15 @@ class MockNMClient:
             MockRegisteredConnection("test-stored-uuid1"),
             MockRegisteredConnection("test-stored-uuid2")
         ]
+
+
+class MockNMClient:
+    def __init__(self, *args):
+        pass
+
+    @property
+    def nm_client(self):
+        return MockNM()
 
 
 class BaseMockVpnPlugin:
@@ -257,7 +263,7 @@ def test_persisted_but_not_existing_nm_connection(uninstantiated_patched_nm):
 
 def test_get_non_persisted_nm_connection(uninstantiated_patched_nm):
     nm = uninstantiated_patched_nm(MockVpnServer(), MockVpnCredentials())
-    nm._unique_id = "test-active-uuid1"
+    nm._unique_id = "random-unique-id-that-is-not-known"
     assert not nm._get_nm_connection()
 
 
@@ -436,7 +442,7 @@ def test_on_expected_state_changed(uninstantiated_patched_nm, state, reason, exp
 
     assert nm.status.state == states.Connecting().state
 
-    nm._LinuxNetworkManager__on_vpn_state_changed(state, reason)
+    nm.on_vpn_state_changed(state, reason)
     assert nm.status.state == expected_state.state
 
     uninstantiated_patched_nm.determine_initial_state = x
