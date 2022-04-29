@@ -319,6 +319,13 @@ class NetworkManagerSettingsAdapter(BaseNetworkManagerDbusAdapter):
                 stored_connection_object_path.split("/")[-1]
             )
 
+    def add_connection(self, connection: dict) -> "ConnectionSettingsAdapter":
+        object_path = self.settings_interface.AddConnection(connection)
+        if not object_path:
+            return None
+
+        return ConnectionSettingsAdapter(self.bus, object_path.split("/")[-1])
+
     def _ensure_that_object_exists(self):
         self.properties
 
