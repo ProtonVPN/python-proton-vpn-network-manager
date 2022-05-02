@@ -9,7 +9,7 @@ setup(
     author="Proton Technologies",
     author_email="contact@protonmail.com",
     url="https://github.com/ProtonVPN/pyhon-protonvpn-network-manager",
-    packages=find_namespace_packages(include=['proton.vpn.backend.linux.networkmanager']),
+    packages=find_namespace_packages(include=['proton.vpn.backend.linux.networkmanager', 'proton.vpn.backend.linux.networkmanager.dbus']),
     include_package_data=True,
     install_requires=["proton-core"],
     entry_points={

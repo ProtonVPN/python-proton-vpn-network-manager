@@ -4,6 +4,7 @@ from gi.repository import NM, GLib
 
 
 class NMClient:
+    nm_client = None
 
     def __init__(self):
         self.result = False
@@ -20,7 +21,7 @@ class NMClient:
         self.result = True
         self.nm_client = source_object.new_finish(res)
 
-    def _commit_changes_async(self, new_connection):
+    def _commit_changes_async(self, new_connection: "NM.RemoteConnection"):
         new_connection.commit_changes_async(
             True,
             None,
@@ -34,7 +35,7 @@ class NMClient:
         if self.failure is not None:
             raise self.failure
 
-    def _add_connection_async(self, connection):
+    def _add_connection_async(self, connection: "NM.Connection"):
         self.nm_client.add_connection_async(
             connection,
             True,
@@ -49,7 +50,7 @@ class NMClient:
         if self.failure is not None:
             raise self.failure
 
-    def _start_connection_async(self, connection):
+    def _start_connection_async(self, connection: "NM.Connection"):
         """Start ProtonVPN connection."""
         self.nm_client.activate_connection_async(
             connection,
@@ -66,12 +67,7 @@ class NMClient:
         if self.failure is not None:
             raise self.failure
 
-    def _remove_connection_async(self, connection):
-        try:
-            self.stop_connection_async(connection)
-        except: # noqa
-            pass
-
+    def _remove_connection_async(self, connection: "NM.RemoteConnection"):
         connection.delete_async(
             None,
             self.__dynamic_callback,
@@ -84,7 +80,7 @@ class NMClient:
         if self.failure is not None:
             raise self.failure
 
-    def _stop_connection_async(self, connection):
+    def _stop_connection_async(self, connection: "NM.ActiveConnection"):
         """Stop ProtonVPN connection.
 
         Args(optional):

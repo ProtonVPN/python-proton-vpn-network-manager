@@ -1,0 +1,11 @@
+[run]
+omit = 
+    proton/vpn/backend/linux/networkmanager/__init__.py
+    proton/vpn/backend/linux/networkmanager/nmclient.py
+    proton/vpn/backend/linux/networkmanager/enum.py
+    proton/vpn/backend/linux/networkmanager/connection_monitor.py
+    proton/vpn/backend/linux/networkmanager/dbus/__init__.py
+    proton/vpn/backend/linux/networkmanager/dbus/dbus_adapter.py
+    proton/vpn/backend/linux/networkmanager/dbus/networkmanager_adapter.py
+    proton/vpn/backend/linux/networkmanager/dbus/networkmanager_bus.py
+    proton/vpn/backend/linux/networkmanager/dbus/dbus_connection.py
