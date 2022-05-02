@@ -8,3 +8,4 @@ omit =
     proton/vpn/backend/linux/networkmanager/dbus/dbus_adapter.py
     proton/vpn/backend/linux/networkmanager/dbus/networkmanager_adapter.py
     proton/vpn/backend/linux/networkmanager/dbus/networkmanager_bus.py
+    proton/vpn/backend/linux/networkmanager/dbus/dbus_connection.py

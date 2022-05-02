@@ -84,9 +84,9 @@ class LinuxNetworkManager(VPNConnection, NMClient):
             for the change. This callback will receive these updates and translate for
             them accordingly for the state machine, as the state machine is backend agnostic.
 
-            :type state: connection state update
+            :param state: connection state update
             :type state: int
-            :type reason: the reason for the state update
+            :param reason: the reason for the state update
             :type reason: int
         """
         state = VPNConnectionStateEnum(state)
