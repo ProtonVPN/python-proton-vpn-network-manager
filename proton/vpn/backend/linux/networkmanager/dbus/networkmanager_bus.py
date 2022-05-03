@@ -9,6 +9,8 @@ class NetworkManagerBus:
     """
     def __init__(self):
         import dbus
+        from dbus.mainloop.glib import DBusGMainLoop
+        DBusGMainLoop(set_as_default=True)
         self.__bus = dbus.SystemBus()
 
     def get_network_manager(self) -> "NetworkManagerAdapter":

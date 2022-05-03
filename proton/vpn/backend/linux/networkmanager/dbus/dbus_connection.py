@@ -224,6 +224,7 @@ class BaseDbusIpSettings:
         self.__ignore_auto_dns = None
         self.__route_metric = None
         self.__addresses = None
+        self.__route_data = None
 
     def generate_configuration(self):
         cfg = dbus.Dictionary({})
@@ -251,6 +252,9 @@ class BaseDbusIpSettings:
 
         if self.addresses:
             cfg["addresses"] = self.addresses
+
+        if self.route_data:
+            cfg["route-data"] = self.route_data
 
         if self.dns:
             cfg["dns"] = self.dns
@@ -524,7 +528,7 @@ class BaseDbusIpSettings:
         gateway IP. Here is an example:
 
         .. code-block::
-            ipv4_addresses = dbus.Array(
+            addresses_ipv4 = dbus.Array(
                 [
                     int.from_bytes(ipaddress.ip_address(ipv4_addr).packed, 'big'),
                     dbus.UInt32(24),
@@ -566,6 +570,47 @@ class BaseDbusIpSettings:
                     )
                 )
             self.__addresses = dbus.Array(ipv6_addresses)
+
+    @property
+    def route_data(self):
+        return self.__route_data
+
+    @route_data.setter
+    def route_data(self, newvalue: list):
+        if newvalue is None:
+            self.__route_data = None
+
+        _route_data = []
+        for route_entry in newvalue:
+            dest = route_entry[0]
+            prefix = route_entry[1]
+            next_hop = None
+            metric = None
+
+            try:
+                next_hop = route_entry[2]
+            except IndexError:
+                pass
+
+            try:
+                metric = route_entry[3]
+            except IndexError:
+                pass
+
+            new_entry = dbus.Dictionary({
+                "dest": dest,
+                "prefix": prefix
+            }, signature=dbus.Signature("sv"))
+
+            if next_hop:
+                new_entry["next-hop"] = next_hop
+
+            if metric:
+                new_entry["metric"] = metric
+
+            _route_data.append(new_entry)
+
+        self.__route_data = dbus.Array(_route_data, signature=dbus.Signature("a{sv}"))
 
 
 class DbusIpv4Settings(BaseDbusIpSettings):

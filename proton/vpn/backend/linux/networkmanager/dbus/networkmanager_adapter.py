@@ -117,10 +117,16 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
             :rtype: ActiveConnectionAdapter
         """
         for active_connection_object_path in self.get_property(self.nm_interface_path, "ActiveConnections"):
-            yield ActiveConnectionAdapter(
-                self.bus,
-                active_connection_object_path.split("/")[-1]
-            )
+            try:
+                yield ActiveConnectionAdapter(
+                    self.bus,
+                    active_connection_object_path.split("/")[-1]
+                )
+                continue
+            except (RuntimeError, StopIteration):
+                # When exiting a yielded for loop with `break` or `return`
+                # an exception is raised. This exceptions has to be catched.
+                continue
 
     def search_for_connection(self, uuid=None, interface_name=None) -> "ConnectionSettingsAdapter":
         """
@@ -134,6 +140,8 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
 
         Either `uuid` or `by_interface_name` has to be passed.
         """
+        import dbus.exceptions
+
         if not uuid and not interface_name or uuid and interface_name:
             raise RuntimeError("Only one of the args should be passed")
 
@@ -151,11 +159,16 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
                 connection = connection.connection_settings_adapter
             except AttributeError:
                 pass
+            except dbus.exceptions.DBusException:
+                continue
 
             if (
                 uuid and uuid == connection.uuid
             ) or (
-                interface_name and interface_name == connection.vpn_virtual_device
+                interface_name and (
+                    interface_name == connection.vpn_virtual_device
+                    or interface_name == connection.interface_name
+                )
             ):
                 return connection
 
@@ -318,6 +331,9 @@ class NetworkManagerSettingsAdapter(BaseNetworkManagerDbusAdapter):
                 self.bus,
                 stored_connection_object_path.split("/")[-1]
             )
+
+    def reload_connections(self):
+        self.settings_interface.ReloadConnections()
 
     def add_connection(self, connection: dict) -> "ConnectionSettingsAdapter":
         object_path = self.settings_interface.AddConnection(connection)
@@ -650,6 +666,10 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
         return False
 
     @property
+    def interface_name(self):
+        return self.connection_settings.get("interface-name")
+
+    @property
     def vpn_virtual_device(self) -> "str":
         """
             :return: the virtual device of a vpn connection
@@ -713,7 +733,11 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
             :return: connection settings
             :rtype: dict
         """
-        return self.connection_settings_interface.GetSettings()
+        import dbus.exceptions
+        try:
+            return self.connection_settings_interface.GetSettings()
+        except dbus.exceptions.DBusException:
+            return {}
 
     def connect_on_removed(self, callback, **kwargs):
         """
