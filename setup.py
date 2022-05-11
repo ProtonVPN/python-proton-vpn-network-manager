@@ -3,7 +3,7 @@
 from setuptools import setup, find_namespace_packages
 
 setup(
-    name="python-protonvpn-network-manager",
+    name="proton-vpn-network-manager",
     version="0.0.0",
     description="Proton Technologies VPN connector for linux",
     author="Proton Technologies",
