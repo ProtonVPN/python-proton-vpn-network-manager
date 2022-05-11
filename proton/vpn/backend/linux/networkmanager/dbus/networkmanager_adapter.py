@@ -159,7 +159,7 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
                 connection = connection.connection_settings_adapter
             except AttributeError:
                 pass
-            except dbus.exceptions.DBusException:
+            except (dbus.exceptions.DBusException, RuntimeError):
                 continue
 
             if (

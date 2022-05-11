@@ -308,6 +308,10 @@ class BaseDbusIpSettings:
         .. code-block::
             address_data = {"address": "192.168.1.205", "prefix": 24}
         """
+        if newvalue is None:
+            self.__address_data = None
+            return
+
         assert newvalue.get("address")
         assert newvalue.get("prefix")
 
