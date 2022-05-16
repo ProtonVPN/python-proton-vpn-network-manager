@@ -684,6 +684,14 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
         """Delete this connection"""
         self.connection_settings_interface.Delete()
 
+    def update_settings(self, properties: "dbus.Dictionary"):
+        """
+            :param properties: dbus dictionary with all the properties
+                in expected format.
+            :type properties: dbus.Dictionary
+        """
+        self.connection_settings_interface.Update(properties)
+
     @property
     def connection_settings(self) -> "dict":
         """
@@ -768,6 +776,8 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
         """
             :return: proxy interface
             :rtype: dbus.proxies.Interface
+
+        Use this property to call any methods under this specific interface.
         """
         return self._get_interface_from_path(self.connection_settings_interface_path)
 
