@@ -274,7 +274,11 @@ class BaseDbusIpSettings:
             :rtype: int
         """
         import ipaddress
-        return int.from_bytes(ipaddress.ip_address(ipv4_addr).packed, 'big')
+        from sys import byteorder
+        return int.from_bytes(
+            ipaddress.ip_address(ipv4_addr).packed,
+            str(byteorder)
+        )
 
     @staticmethod
     def ipv6_to_byte_list(ipv6_addr: str) -> list:
@@ -293,10 +297,10 @@ class BaseDbusIpSettings:
         return self.__address_data
 
     @address_data.setter
-    def address_data(self, newvalue: dict):
+    def address_data(self, newvalue: list):
         """
-            :param newvalue: dict with keywords `address` and `prefix`
-            :type type: dict
+            :param newvalue: list with with dict keywords `address` and `prefix`
+            :type newvalue: list(dict)
 
         Array of IPv4/6 addresses. Each address dictionary contains
         at least 'address' and 'prefix' entries, containing the IP address
@@ -306,16 +310,26 @@ class BaseDbusIpSettings:
         Expected format:
 
         .. code-block::
-            address_data = {"address": "192.168.1.205", "prefix": 24}
+            address_data = [{"address": "192.168.1.205", "prefix": 24}]
         """
         if newvalue is None:
             self.__address_data = None
             return
 
-        assert newvalue.get("address")
-        assert newvalue.get("prefix")
+        if not isinstance(newvalue, list):
+            raise TypeError(
+                "Expected {} but got {}".format(
+                    type([]), type(newvalue)
+                )
+            )
 
-        self.__address_data = dbus.Array([dbus.Dictionary(newvalue)], signature=dbus.Signature("a{sv}"))
+        _dbus_array = []
+        for entry in newvalue:
+            assert entry.get("address")
+            assert entry.get("prefix")
+            _dbus_array.append(dbus.Dictionary(entry, signature=dbus.Signature("sv")))
+
+        self.__address_data = dbus.Array(_dbus_array, signature=dbus.Signature("a{sv}"))
 
     @property
     def method(self) -> str:
@@ -447,7 +461,10 @@ class BaseDbusIpSettings:
         if the IP configuration is set to never-default. As an alternative to set the gateway,
         configure a static default route with /0 as prefix length.
         """
-        self.__gateway = str(newvalue)
+        if newvalue is None:
+            self.__gateway = None
+        else:
+            self.__gateway = str(newvalue)
 
     @property
     def ignore_auto_dns(self) -> bool:
@@ -540,6 +557,10 @@ class BaseDbusIpSettings:
                 ], signature=dbus.Signature('u')
             )
         """
+        if newvalue is None:
+            self.__addresses = None
+            return
+
         if self.ip_version == 4:
             ipv4_addresses = []
             for entry in newvalue:

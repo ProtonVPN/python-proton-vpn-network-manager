@@ -1,4 +1,6 @@
 from .dbus_adapter import BaseDbusAdapter
+import dbus.exceptions
+from proton.vpn.backend.linux.networkmanager.dbus.exceptions import ProtonDbusException
 
 
 class BaseNetworkManagerDbusAdapter(BaseDbusAdapter):
@@ -140,8 +142,6 @@ class NetworkManagerAdapter(BaseNetworkManagerDbusAdapter):
 
         Either `uuid` or `by_interface_name` has to be passed.
         """
-        import dbus.exceptions
-
         if not uuid and not interface_name or uuid and interface_name:
             raise RuntimeError("Only one of the args should be passed")
 
@@ -336,9 +336,16 @@ class NetworkManagerSettingsAdapter(BaseNetworkManagerDbusAdapter):
         self.settings_interface.ReloadConnections()
 
     def add_connection(self, connection: dict) -> "ConnectionSettingsAdapter":
-        object_path = self.settings_interface.AddConnection(connection)
+        object_path = None
+        try:
+            object_path = self.settings_interface.AddConnection(connection)
+        except dbus.exceptions.DBusException as e:
+            raise ProtonDbusException(
+                "Connection could not be created. Check NetworkManager syslogs"
+            ) from e
+
         if not object_path:
-            return None
+            raise ProtonDbusException("Connection could not be created. Check NetworkManager syslogs")
 
         return ConnectionSettingsAdapter(self.bus, object_path.split("/")[-1])
 
@@ -682,7 +689,13 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
 
     def delete_connection(self) -> None:
         """Delete this connection"""
-        self.connection_settings_interface.Delete()
+        try:
+            self.connection_settings_interface.Delete()
+        except dbus.exceptions.DBusException() as e:
+            raise ProtonDbusException(
+                "Unable to delete connection {}. "
+                "See NetworkManager syslogs".format(self)
+            ) from e
 
     def update_settings(self, properties: "dbus.Dictionary"):
         """
@@ -690,7 +703,13 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
                 in expected format.
             :type properties: dbus.Dictionary
         """
-        self.connection_settings_interface.Update(properties)
+        try:
+            self.connection_settings_interface.Update(properties)
+        except dbus.exceptions.DBusException() as e:
+            raise ProtonDbusException(
+                "Unable to update connection {}. "
+                "See NetworkManager syslogs".format(self)
+            ) from e
 
     @property
     def connection_settings(self) -> "dict":
@@ -741,7 +760,6 @@ class ConnectionSettingsAdapter(BaseNetworkManagerDbusAdapter):
             :return: connection settings
             :rtype: dict
         """
-        import dbus.exceptions
         try:
             return self.connection_settings_interface.GetSettings()
         except dbus.exceptions.DBusException:
