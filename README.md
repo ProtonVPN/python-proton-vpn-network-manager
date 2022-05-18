@@ -16,13 +16,13 @@ you have the documentation on how to do that.
 
 ### Known issues
 
-This component depends on `PyGObject` and `dbus-python`. Unfortunately, quite a few distribution packages are required
-before being able to install these 2 dependencies with pip.
+This component depends on the `PyGObject` and `dbus-python` python packages. Unfortunately, quite a few
+distribution packages are required before being able to pip install these 2 dependencies.
 
-To be able to install `PyGObject` with pip, please check the required distribution packages in the
+To be able to pip install `PyGObject`, please check the required distribution packages in the
 [official documentation](https://pygobject.readthedocs.io/en/latest/devguide/dev_environ.html).
 
-To be able to install `dbus-python` (version 1.2.18, at the time of writing) with pip, the following Debian
+To be able to pip install `dbus-python` (version 1.2.18, at the time of writing), the following Debian
 packages were required on Ubuntu 22.04. You'll need the equivalent packages in other distributions.
 
 ```shell
