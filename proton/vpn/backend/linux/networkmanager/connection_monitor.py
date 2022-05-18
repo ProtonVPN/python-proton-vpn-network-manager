@@ -1,4 +1,4 @@
-from proton.vpn.backend.linux.networkmanager.dbus import NetworkManagerBus
+from dbus_network_manager import NetworkManagerBus
 from proton.vpn.backend.linux.networkmanager.enum import (
     NMActiveConnectionState, VPNConnectionReasonEnum, VPNConnectionStateEnum)
 

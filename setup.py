@@ -9,9 +9,9 @@ setup(
     author="Proton Technologies",
     author_email="contact@protonmail.com",
     url="https://github.com/ProtonVPN/pyhon-protonvpn-network-manager",
-    packages=find_namespace_packages(include=['proton.vpn.backend.linux.networkmanager', 'proton.vpn.backend.linux.networkmanager.dbus']),
+    packages=find_namespace_packages(include=["proton.vpn.backend.linux.networkmanager"]),
     include_package_data=True,
-    install_requires=["proton-core","proton-vpn-connection","dbus-python","PyGObject"],
+    install_requires=["proton-core", "proton-vpn-connection", "dbus-network-manager", "PyGObject"],
     entry_points={
         "proton_loader_backend": [
             "networkmanager = proton.vpn.backend.linux.networkmanager:LinuxNetworkManager",
