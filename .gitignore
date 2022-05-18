@@ -11,3 +11,5 @@ cov.xml
 html
 .vscode
 .coverage
+.idea
+venv

@@ -12,6 +12,9 @@ setup(
     packages=find_namespace_packages(include=["proton.vpn.backend.linux.networkmanager"]),
     include_package_data=True,
     install_requires=["proton-core", "proton-vpn-connection", "dbus-network-manager", "PyGObject"],
+    extras_require={
+        "development": ["wheel", "pytest"]
+    },
     entry_points={
         "proton_loader_backend": [
             "networkmanager = proton.vpn.backend.linux.networkmanager:LinuxNetworkManager",

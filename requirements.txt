@@ -1,2 +1,2 @@
-PyGObject
-dbus-python
+-e ".[development]"
+
