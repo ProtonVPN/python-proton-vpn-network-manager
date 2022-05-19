@@ -1,4 +1,4 @@
-# ProtonVPN Network Manager
+# Proton VPN Network Manager
 
 The `proton-vpn-network-manager` component provides the necessary functionality for other components to interact with
 [NetworkManager](https://www.networkmanager.dev).
