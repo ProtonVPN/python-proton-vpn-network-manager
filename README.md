@@ -10,9 +10,18 @@ you can use pip to set up your development environment.
 
 ### Proton package registry
 
-If you didn't do it yet, you'll need to set up our internal Python package registry.
-[Here](https://gitlab.protontech.ch/help/user/packages/pypi_repository/index.md#authenticate-to-access-packages-within-a-group)
-you have the documentation on how to do that.
+If you didn't do it yet, to be able to pip install ProtonVPN components you'll
+need to set up our internal Python package registry. You can do so running the
+command below, after replacing `{GITLAB_TOKEN`} with your
+[personal access token](https://gitlab.protontech.ch/help/user/profile/personal_access_tokens.md)
+with the scope set to `api`.
+
+```shell
+pip config set global.index-url https://__token__:{GITLAB_TOKEN}@gitlab.protontech.ch/api/v4/groups/777/-/packages/pypi/simple
+```
+
+In the index URL above, `777` is the id of the current root GitLab group,
+the one containing the repositories of all our ProtonVPN components.
 
 ### Known issues
 
