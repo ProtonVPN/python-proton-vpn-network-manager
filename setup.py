@@ -20,6 +20,7 @@ setup(
             "networkmanager = proton.vpn.backend.linux.networkmanager:LinuxNetworkManager",
         ]
     },
+    python_requires=">=3.8",
     license="GPLv3",
     platforms="OS Independent",
     classifiers=[
