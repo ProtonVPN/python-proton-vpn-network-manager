@@ -17,7 +17,7 @@ setup(
     },
     entry_points={
         "proton_loader_backend": [
-            "networkmanager = proton.vpn.backend.linux.networkmanager:LinuxNetworkManager",
+            "networkmanager = proton.vpn.backend.linux.networkmanager.core:LinuxNetworkManager",
         ]
     },
     python_requires=">=3.8",
