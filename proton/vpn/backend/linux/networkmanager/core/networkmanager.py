@@ -1,4 +1,4 @@
-from proton.vpn.backend.linux.networkmanager.enum import (
+from proton.vpn.backend.linux.networkmanager.core.enum import (
     VPNConnectionReasonEnum, VPNConnectionStateEnum)
 from proton.vpn.connection import VPNConnection, events
 

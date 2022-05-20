@@ -1,5 +1,5 @@
 from .common import MockVpnCredentials, MockVpnServer
-from proton.vpn.backend.linux.networkmanager.enum import VPNConnectionReasonEnum, VPNConnectionStateEnum
+from proton.vpn.backend.linux.networkmanager.core.enum import VPNConnectionReasonEnum, VPNConnectionStateEnum
 from proton.vpn.connection import events, states
 import pytest
 import time
@@ -203,7 +203,7 @@ class MockVpnConfig:
 
 @pytest.fixture
 def uninstantiated_patched_nm():
-    from proton.vpn.backend.linux.networkmanager import networkmanager
+    from proton.vpn.backend.linux.networkmanager.core import networkmanager
 
     _nmc = networkmanager.NMClient
     networkmanager.NMClient = MockNMClient
