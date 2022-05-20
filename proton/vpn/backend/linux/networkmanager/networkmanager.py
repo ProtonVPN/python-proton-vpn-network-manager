@@ -59,9 +59,9 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         self.__dbus_loop = GLib.MainLoop()
         ConnectionMonitor(
             self._unique_id,
-            self.on_vpn_state_changed
+            self.on_vpn_state_changed,
+            self.__dbus_loop
         )
-        self.__dbus_loop.run()
 
     def stop_connection(self):
         import threading
@@ -74,9 +74,9 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         ConnectionMonitor(
             self._unique_id,
             self.on_connection_is_removed,
+            self.__dbus_loop,
             True
         )
-        self.__dbus_loop.run()
 
     def on_vpn_state_changed(self, state: "int", reason: "int"):
         """
