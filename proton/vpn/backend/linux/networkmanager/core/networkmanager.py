@@ -1,8 +1,8 @@
+from concurrent.futures import Future
+
 from proton.vpn.backend.linux.networkmanager.core.enum import (
     VPNConnectionReasonEnum, VPNConnectionStateEnum)
 from proton.vpn.connection import VPNConnection, events
-
-from dbus.mainloop.glib import DBusGMainLoop
 
 from .connection_monitor import ConnectionMonitor
 from .nmclient import NM, GLib, NMClient, gi
@@ -44,37 +44,20 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
         raise MissingProtocolDetails("Could not find {} protocol".format(protocol))
 
-    def start_connection(self):
-        import threading
-        thread = threading.Thread(target=self._start_connection_in_thread)
-        thread.start()
-
-    def _start_connection_in_thread(self):
+    def start_connection(self) -> Future:
         self._setup()
-        self.nm_client._start_connection_async(self._get_nm_connection())
-
-        # To catch signals from network manager, these are the necessary steps:
-        # https://dbus.freedesktop.org/doc/dbus-python/tutorial.html#setting-up-an-event-loop
-        DBusGMainLoop(set_as_default=True)
-        self.__dbus_loop = GLib.MainLoop()
+        future = self.nm_client._start_connection_async(self._get_nm_connection())
         ConnectionMonitor(
             self._unique_id,
             self.on_vpn_state_changed,
-            self.__dbus_loop
         )
+        return future
+
 
     def stop_connection(self):
-        import threading
-        thread = threading.Thread(target=self._stop_connection_in_thread)
-        thread.start()
-
-    def _stop_connection_in_thread(self):
-        DBusGMainLoop(set_as_default=True)
-        self.__dbus_loop = GLib.MainLoop()
         ConnectionMonitor(
             self._unique_id,
             self.on_connection_is_removed,
-            self.__dbus_loop,
             True
         )
 
@@ -93,20 +76,17 @@ class LinuxNetworkManager(VPNConnection, NMClient):
         reason = VPNConnectionReasonEnum(reason)
 
         if state == VPNConnectionStateEnum.IS_ACTIVE:
-            self.__dbus_loop.quit()
             self.on_event(events.Connected())
         elif state == VPNConnectionStateEnum.FAILED:
             if reason in [
                 VPNConnectionReasonEnum.CONN_ATTEMPT_TO_SERVICE_TIMED_OUT,
                 VPNConnectionReasonEnum.TIMEOUT_WHILE_STARTING_VPN_SERVICE_PROVIDER
             ]:
-                self.__dbus_loop.quit()
                 self.on_event(events.Timeout(reason))
             elif reason in [
                 VPNConnectionReasonEnum.SECRETS_WERE_NOT_PROVIDED,
                 VPNConnectionReasonEnum.SERVER_AUTH_FAILED
             ]:
-                self.__dbus_loop.quit()
                 self.on_event(events.AuthDenied(reason))
             elif reason in [
                 VPNConnectionReasonEnum.IP_CONFIG_WAS_INVALID,
@@ -117,23 +97,19 @@ class LinuxNetworkManager(VPNConnection, NMClient):
                 VPNConnectionReasonEnum.START_SERVICE_VPN_CONN_SERVICE_FAILED,
                 VPNConnectionReasonEnum.VPN_DEVICE_DISAPPEARED
             ]:
-                self.__dbus_loop.quit()
                 self.on_event(events.TunnelSetupFail(reason))
             elif reason in [
                 VPNConnectionReasonEnum.DEVICE_WAS_DISCONNECTED,
                 VPNConnectionReasonEnum.USER_HAS_DISCONNECTED
             ]:
-                self.__dbus_loop.quit()
                 self.on_event(events.Disconnected(reason))
             elif reason in [
                 VPNConnectionReasonEnum.UNKNOWN,
                 VPNConnectionReasonEnum.NOT_PROVIDED
             ]:
-                self.__dbus_loop.quit()
                 self.on_event(events.UnknownError(reason))
 
         elif state == VPNConnectionStateEnum.DISCONNECTED:
-            self.__dbus_loop.quit()
             self.on_event(events.Disconnected(reason))
 
     def on_connection_is_removed(self, has_connection_been_removed: "bool"):
@@ -144,7 +120,6 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
             :type has_connection_been_removed: bool
         """
-        self.__dbus_loop.quit()
         if has_connection_been_removed:
             self.on_event(events.Disconnected())
         else:

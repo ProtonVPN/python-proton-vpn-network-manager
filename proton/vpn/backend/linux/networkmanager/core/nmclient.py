@@ -1,3 +1,6 @@
+from concurrent.futures import Future
+from typing import Callable
+
 import gi
 gi.require_version("NM", "1.0")
 from gi.repository import NM, GLib
@@ -7,137 +10,89 @@ class NMClient:
     nm_client = None
 
     def __init__(self):
-        self.result = False
-        self._main_loop = GLib.MainLoop()
-        self.failure = None
+        callback, future = self.create_nmcli_callback(finish_method_name="new_finish")
+        NM.Client().new_async(None, callback, None)
+        self.nm_client = future.result()
 
-        _nm_client = NM.Client()
-        _nm_client.new_async(None, self.cb, None)
+    def create_nmcli_callback(self, finish_method_name: str) -> (Callable, Future):
+        future = Future()
+        future.set_running_or_notify_cancel()
 
-        while not self.result:
-            _nm_client.get_main_context().iteration(may_block=True)
+        def callback(source_object, res, userdata):
+            try:
+                if not source_object or not res:
+                    # On errors, according to the docs, the callback can be called with source_object/res set to None
+                    # https://lazka.github.io/pgi-docs/index.html#NM-1.0/classes/Client.html#NM.Client.new_async
+                    raise Exception(f"An unexpected error occurred initializing NMClient: "
+                                    f"source_object = {source_object}, res = {res}.")
 
-    def cb(self, source_object, res, userdata):
-        self.result = True
-        self.nm_client = source_object.new_finish(res)
+                result = getattr(source_object, finish_method_name)(res)
 
-    def _commit_changes_async(self, new_connection: "NM.RemoteConnection"):
+                if not result:
+                    # According to the docs, None is returned when there was ane error
+                    # https://lazka.github.io/pgi-docs/index.html#NM-1.0/classes/Client.html#NM.Client.new_finish
+                    raise Exception("An unexpected error occurred initializing NMCLient")
+
+                future.set_result(result)
+            except Exception as e:
+                future.set_exception(e)
+
+        return callback, future
+
+    def _commit_changes_async(self, new_connection: "NM.RemoteConnection") -> Future:
+        callback, future = self.create_nmcli_callback(finish_method_name="commit_changes_finish")
         new_connection.commit_changes_async(
             True,
             None,
-            self.__dynamic_callback,
-            dict(
-                callback_type="commit",
-                conn_name=new_connection.get_id(),
-            )
+            callback,
+            None
         )
-        self._main_loop.run()
-        if self.failure is not None:
-            raise self.failure
+        return future
 
-    def _add_connection_async(self, connection: "NM.Connection"):
+    def _add_connection_async(self, connection: "NM.Connection") -> Future:
+        callback, future = self.create_nmcli_callback(finish_method_name="add_connection_finish")
         self.nm_client.add_connection_async(
             connection,
             True,
             None,
-            self.__dynamic_callback,
-            dict(
-                callback_type="add",
-                conn_name=connection.get_id(),
-            )
+            callback,
+            None
         )
-        self._main_loop.run()
-        if self.failure is not None:
-            raise self.failure
+        return future
 
-    def _start_connection_async(self, connection: "NM.Connection"):
+    def _start_connection_async(self, connection: "NM.Connection") -> Future:
         """Start ProtonVPN connection."""
+        callback, future = self.create_nmcli_callback(finish_method_name="activate_connection_finish")
         self.nm_client.activate_connection_async(
             connection,
             None,
             None,
             None,
-            self.__dynamic_callback,
-            dict(
-                callback_type="start",
-                conn_name=connection.get_id()
-            )
+            callback,
+            None
         )
-        self._main_loop.run()
-        if self.failure is not None:
-            raise self.failure
+        return future
 
-    def _remove_connection_async(self, connection: "NM.RemoteConnection"):
+    def _remove_connection_async(self, connection: "NM.RemoteConnection") -> Future:
+        callback, future = self.create_nmcli_callback(finish_method_name="delete_finish")
         connection.delete_async(
             None,
-            self.__dynamic_callback,
-            dict(
-                callback_type="remove",
-                conn_name=connection.get_id()
-            )
+            callback,
+            None
         )
-        self._main_loop.run()
-        if self.failure is not None:
-            raise self.failure
+        return future
 
-    def _stop_connection_async(self, connection: "NM.ActiveConnection"):
+    def _stop_connection_async(self, connection: "NM.ActiveConnection") -> Future:
         """Stop ProtonVPN connection.
 
         Args(optional):
             client (NM.nm_client): new NetworkManager Client object
         """
+        callback, future = self.create_nmcli_callback(finish_method_name="deactivate_connection_finish")
         self.nm_client.deactivate_connection_async(
             connection,
             None,
-            self.__dynamic_callback,
-            dict(
-                callback_type="stop",
-                conn_name=connection.get_id()
-            )
+            callback,
+            None
         )
-        self._main_loop.run()
-        if self.failure is not None:
-            raise self.failure
-
-    def __dynamic_callback(self, client, result, data):
-        """Dynamic callback method.
-
-        Args:
-            client (NM.nm_client): nm client object
-            result (Gio.AsyncResult): function
-            data (dict): optional extra data
-        """
-        callback_type = data.get("callback_type")
-        try:
-            callback_type_dict = dict(
-                remove=dict(
-                    finish_function=NM.Client.delete_finish,
-                    msg="remove"
-                )
-            )
-        except AttributeError:
-            callback_type_dict = dict(
-                add=dict(
-                    finish_function=NM.Client.add_connection_finish
-                ),
-                start=dict(
-                    finish_function=NM.Client.activate_connection_finish
-                ),
-                stop=dict(
-                    finish_function=NM.Client.deactivate_connection_finish
-                ),
-                commit=dict(
-                    finish_function=NM.RemoteConnection.commit_changes_finish
-                )
-            )
-
-        try:
-            callback_type_dict[
-                callback_type
-            ]["finish_function"](client, result)
-        except KeyError:
-            pass
-        except Exception as e:
-            self.failure = e
-
-        self._main_loop.quit()
+        return future

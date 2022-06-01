@@ -4,10 +4,9 @@ from proton.vpn.backend.linux.networkmanager.core.enum import (
 
 
 class ConnectionMonitor:
-    def __init__(self, uuid, callback, loop, connection_set_down=False):
+    def __init__(self, uuid, callback, connection_set_down=False):
         self.uuid = uuid
         self.nm_bus = NetworkManagerBus()
-        self.loop = loop
         self.monitor(callback, connection_set_down)
 
     def monitor(self, callback, connection_set_down):
@@ -21,7 +20,6 @@ class ConnectionMonitor:
             if active_conn.uuid == self.uuid:
                 if active_conn.state == NMActiveConnectionState.ACTIVATING:
                     active_conn.connect_on_vpn_state_changed(callback)
-                    self.loop.run()
                 elif active_conn.state == NMActiveConnectionState.ACTIVATED:
                     callback(
                         VPNConnectionStateEnum.IS_ACTIVE,
@@ -38,7 +36,6 @@ class ConnectionMonitor:
                 self._confirm_connection_has_been_removed,
             )
             conn.delete_connection()
-            self.loop.run()
         else:
             callback(None)
 
