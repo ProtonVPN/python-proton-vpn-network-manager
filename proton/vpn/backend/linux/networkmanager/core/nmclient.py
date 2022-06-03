@@ -1,4 +1,6 @@
+import logging
 from concurrent.futures import Future
+from threading import Thread
 from typing import Callable
 
 import gi
@@ -6,10 +8,18 @@ gi.require_version("NM", "1.0")
 from gi.repository import NM, GLib
 
 
+logger = logging.getLogger(__name__)
+
+
 class NMClient:
     nm_client = None
 
     def __init__(self):
+        self._main_loop = GLib.MainLoop()
+        # Setting daemon=True when creating the thread makes that this thread exits abruptly when the python
+        # process exits. It would be better to exit the thread running the main loop calling self._main_loop.quit().
+        Thread(target=self._main_loop.run, daemon=True).start()
+
         callback, future = self.create_nmcli_callback(finish_method_name="new_finish")
         NM.Client().new_async(None, callback, None)
         self.nm_client = future.result()
