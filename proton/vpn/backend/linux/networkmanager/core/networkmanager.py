@@ -259,3 +259,8 @@ class LinuxNetworkManager(VPNConnection, NMClient):
                 pass
 
         return None
+
+    def release_resources(self):
+        # TODO add this method to VPNConnection so that implementations get the chance to clean resources
+        # VPNConnection.release_resources(self)
+        self.nm_client.release_resources()

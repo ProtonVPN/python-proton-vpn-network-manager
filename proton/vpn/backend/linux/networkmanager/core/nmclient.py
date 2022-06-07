@@ -106,3 +106,6 @@ class NMClient:
             None
         )
         return future
+
+    def release_resources(self):
+        self._main_loop.quit()
