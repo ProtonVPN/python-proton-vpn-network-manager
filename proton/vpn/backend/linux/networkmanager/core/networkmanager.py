@@ -18,14 +18,16 @@ class LinuxNetworkManager(VPNConnection, NMClient):
     """
     backend = "linuxnetworkmanager"
 
+    def __init__(self, *args, nm_client: NMClient = None, **kwargs):
+        self._nm_client = nm_client
+        super().__init__(*args, **kwargs)
+
     @property
     def nm_client(self):
-        try:
-            return self.__nm_client
-        except AttributeError:
-            self.__nm_client = NMClient()
+        if not self._nm_client:
+            self._nm_client = NMClient()
 
-        return self.__nm_client
+        return self._nm_client
 
     @classmethod
     def factory(cls, protocol: str = None):
