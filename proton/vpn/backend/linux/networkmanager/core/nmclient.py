@@ -44,7 +44,7 @@ class NMClient:
                     raise Exception("An unexpected error occurred initializing NMCLient")
 
                 future.set_result(result)
-            except Exception as e:
+            except BaseException as e:
                 future.set_exception(e)
 
         return callback, future

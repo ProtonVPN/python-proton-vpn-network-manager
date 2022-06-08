@@ -1,3 +1,4 @@
+import logging
 from concurrent.futures import Future
 
 from proton.vpn.backend.linux.networkmanager.core.enum import (
@@ -8,7 +9,10 @@ from .connection_monitor import ConnectionMonitor
 from .nmclient import NM, GLib, NMClient, gi
 
 
-class LinuxNetworkManager(VPNConnection, NMClient):
+logger = logging.getLogger(__name__)
+
+
+class LinuxNetworkManager(VPNConnection):
     """Returns VPNConnections based on Linux Network Manager backend.
 
     This is the default backend that will be returned. See docstring for
@@ -46,14 +50,34 @@ class LinuxNetworkManager(VPNConnection, NMClient):
 
         raise MissingProtocolDetails("Could not find {} protocol".format(protocol))
 
-    def start_connection(self) -> Future:
+    def start_connection(self):
         self._setup()
-        future = self.nm_client._start_connection_async(self._get_nm_connection())
-        ConnectionMonitor(
-            self._unique_id,
-            self.on_vpn_state_changed,
-        )
-        return future
+        start_connection_future = self.nm_client._start_connection_async(self._get_nm_connection())
+
+        connection_established_future = Future()
+        def start_connection_done_callback(f: Future):
+            """Once the connection has been started, listen for connection state changes."""
+            vpn_connection: NM.VPNConnection = f.result()
+            logger.info(f"Initial VPN connection state = {vpn_connection.get_vpn_state().value_name}")
+
+            def state_changed_callback(_: NM.ActiveConnection, state, reason):
+                logger.info(f"Activating VPN connection: state={state}, reason={reason}")
+                self.on_vpn_state_changed(state, reason)
+                if state == NM.VpnConnectionState.ACTIVATED.real:
+                    # The future is resolved when the connection has finally been established.
+                    logger.info("VPN connection established.")
+                    connection_established_future.set_result(None)
+                elif state == NM.VpnConnectionState.FAILED.real:
+                    connection_established_future.set_exception(
+                        Exception(f"VPN connection failed with reason {reason}."))
+
+            # hook callback to be called whenever the VPN connection changes state
+            vpn_connection.connect("vpn-state-changed", state_changed_callback)
+
+        start_connection_future.add_done_callback(start_connection_done_callback)
+
+        # TODO we should not block here and return the future instead.
+        connection_established_future.result(timeout=10)
 
 
     def stop_connection(self):
