@@ -161,19 +161,6 @@ class LinuxNetworkManager(VPNConnection):
         elif state == VPNConnectionStateEnum.DISCONNECTED:
             self.on_event(events.Disconnected(reason))
 
-    def on_connection_is_removed(self, has_connection_been_removed: "bool"):
-        """
-            This callback is called when the vpn conneciton is removed from NetworkManager,
-            but the arg is the one that actually confirms if the connection was succesfully
-            or not. This will then update the state machine according to the value received.
-
-            :type has_connection_been_removed: bool
-        """
-        if has_connection_been_removed:
-            self.on_event(events.Disconnected())
-        else:
-            self.on_event(events.UnknownError("Unable to disconnect"))
-
     @classmethod
     def _get_connection(cls):
         from proton.vpn.connection import states
