@@ -92,20 +92,5 @@ class NMClient:
         )
         return future
 
-    def _stop_connection_async(self, connection: "NM.ActiveConnection") -> Future:
-        """Stop ProtonVPN connection.
-
-        Args(optional):
-            client (NM.nm_client): new NetworkManager Client object
-        """
-        callback, future = self.create_nmcli_callback(finish_method_name="deactivate_connection_finish")
-        self.nm_client.deactivate_connection_async(
-            connection,
-            None,
-            callback,
-            None
-        )
-        return future
-
     def release_resources(self):
         self._main_loop.quit()
