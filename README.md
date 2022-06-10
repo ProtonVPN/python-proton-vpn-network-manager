@@ -48,10 +48,18 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Tests
+### Unit tests
 
 You can run the tests with:
 
 ```shell
 pytest
+```
+
+### Integration tests
+
+You can run the integration tests with:
+
+```shell
+python tests_integration/test_connection_up_and_down.py <OPENVPN_USERNAME> <OPENVPN_PASSWORD>
 ```
