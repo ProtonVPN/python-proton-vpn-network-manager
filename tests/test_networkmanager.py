@@ -2,7 +2,7 @@ from concurrent.futures import Future
 from unittest.mock import Mock, patch
 
 import pytest
-from proton.vpn.connection import events
+from proton.vpn.connection import events, states
 
 from proton.vpn.backend.linux.networkmanager.core.enum import VPNConnectionStateEnum, VPNConnectionReasonEnum
 from tests.boilerplate import VPNServer, VPNCredentials, Settings
@@ -23,37 +23,43 @@ class LinuxNetworkManagerProtocol(LinuxNetworkManager):
 
 
 @pytest.fixture
-def nm_client():
+def nm_client_mock():
     return Mock()
 
 @pytest.fixture
-def nm_protocol(nm_client):
+def nm_protocol(nm_client_mock):
     return LinuxNetworkManagerProtocol(
-        VPNServer(), VPNCredentials(), Settings(), nm_client=nm_client
+        VPNServer(), VPNCredentials(), Settings(), nm_client=nm_client_mock
     )
 
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")
+def test_start_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
+    # mock NM connection
+    connection_mock = Mock()
+    _get_nm_connection_mock.return_value = connection_mock
 
-def test_start_connection(nm_protocol, nm_client):
     start_connection_future = Future()
-    nm_client._start_connection_async.return_value = start_connection_future
-    connection = Mock()
+    nm_client_mock._start_connection_async.return_value = start_connection_future
 
-    nm_protocol.start_connection(connection)
+    nm_protocol.start_connection()
 
     nm_protocol._setup.assert_called_once()
-    nm_client._start_connection_async.assert_called_once_with(connection)
+    nm_client_mock._start_connection_async.assert_called_once_with(connection_mock)
     # assert that once the connection has been activated, the expected callback is hooked
     # to monitor vpn connection state changes
-    start_connection_future.set_result(connection)
-    connection.connect.assert_called_once_with("vpn-state-changed", nm_protocol._on_vpn_state_changed)
+    start_connection_future.set_result(connection_mock)
+    connection_mock.connect.assert_called_once_with("vpn-state-changed", nm_protocol._on_vpn_state_changed)
 
 
-def test_stop_connection(nm_protocol, nm_client):
-    connection = Mock()
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")
+def test_stop_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
+    # mock NM connection
+    connection_mock = Mock()
+    _get_nm_connection_mock.return_value = connection_mock
 
-    nm_protocol.stop_connection(connection)
+    nm_protocol.stop_connection(connection_mock)
 
-    nm_protocol.nm_client._remove_connection_async.assert_called_once_with(connection)
+    nm_client_mock._remove_connection_async.assert_called_once_with(connection_mock)
 
 
 @pytest.mark.parametrize(
@@ -153,3 +159,29 @@ def test_on_vpn_state_changed(on_event, nm_protocol, state, reason, expected_eve
     # assert that the LinuxNetworkManager.on_event method was called with the expected event
     on_event.assert_called_once()
     assert isinstance(on_event.call_args.args[0], expected_event)
+
+
+@pytest.mark.parametrize(
+    "nm_connection, expected_state",
+    [
+        (
+                Mock(),
+                states.Connected,  # When there is an existing connection the initial state is connected.
+        ),
+        (
+                None,
+                states.Disconnected  # When there is not a connection, the initial state is disconnected.
+        ),
+    ]
+)
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager.update_connection_state")
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")
+def test_determine_initial_state(_get_nm_connection_mock, update_connection_state_mock, nm_protocol, nm_connection, expected_state):
+    _get_nm_connection_mock.return_value = nm_connection
+
+    nm_protocol.determine_initial_state()
+
+    update_connection_state_mock.assert_called_once()
+    assert isinstance(update_connection_state_mock.call_args.args[0], expected_state)
+
+

@@ -5,9 +5,9 @@ from proton.loader import Loader
 
 from proton.vpn.backend.linux.networkmanager.core.enum import (
     VPNConnectionReasonEnum, VPNConnectionStateEnum)
-from proton.vpn.connection import VPNConnection, events
+from proton.vpn.connection import VPNConnection, events, states
 
-from .nmclient import NM, GLib, NMClient, gi
+from proton.vpn.backend.linux.networkmanager.core.nmclient import NM, NMClient, gi
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +38,9 @@ class LinuxNetworkManager(VPNConnection):
         """Returns the VPN connection implementation class for the specified protocol."""
         return Loader.get("nm_protocol", class_name=protocol)
 
-    def start_connection(self, connection=None) -> Future:
+    def start_connection(self) -> Future:
         self._setup()  # Creates the network manager connection.
-        connection = connection or self._get_nm_connection()
-        start_connection_future = self.nm_client._start_connection_async(connection)
+        start_connection_future = self.nm_client._start_connection_async(self._get_nm_connection())
 
         def hook_vpn_state_changed_callback(start_connection_future_done: Future[NM.VpnConnection]):
             vpn_connection = start_connection_future_done.result()
@@ -120,8 +119,6 @@ class LinuxNetworkManager(VPNConnection):
 
     def determine_initial_state(self) -> "None":
         """Determines the initial state of the state machine"""
-        from proton.vpn.connection import states
-
         if self._get_nm_connection():
             self.update_connection_state(states.Connected())
         else:
