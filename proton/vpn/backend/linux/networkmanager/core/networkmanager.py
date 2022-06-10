@@ -1,14 +1,11 @@
 import logging
 from concurrent.futures import Future
 
-from proton.vpn.connection.exceptions import VPNConnectionError
-
 from proton.vpn.backend.linux.networkmanager.core.enum import (
     VPNConnectionReasonEnum, VPNConnectionStateEnum)
 from proton.vpn.connection import VPNConnection, events
 
 from .nmclient import NM, GLib, NMClient, gi
-from .utils import chain_to_future
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +48,10 @@ class LinuxNetworkManager(VPNConnection):
 
         raise MissingProtocolDetails("Could not find {} protocol".format(protocol))
 
-    def start_connection(self) -> Future:
+    def start_connection(self, connection=None) -> Future:
         self._setup()  # Creates the network manager connection.
-        start_connection_future = self.nm_client._start_connection_async(self._get_nm_connection())
+        connection = connection or self._get_nm_connection()
+        start_connection_future = self.nm_client._start_connection_async(connection)
 
         def hook_vpn_state_changed_callback(start_connection_future_done: Future[NM.VpnConnection]):
             vpn_connection = start_connection_future_done.result()
@@ -62,53 +60,11 @@ class LinuxNetworkManager(VPNConnection):
         # start_connection_future is done as soon as the VPN connection is activated, but before it's established.
         # As soon as the connection is activated, we start listening for vpn state changes.
         start_connection_future.add_done_callback(hook_vpn_state_changed_callback)
+        return start_connection_future
 
-        def wait_for_connection_established(start_connection_future_done: Future[NM.VpnConnection]):
-            vpn_connection = start_connection_future_done.result()
-            return self._wait_for_vpn_state(vpn_connection, target_state=NM.VpnConnectionState.Activated)
-
-        connection_established_future = chain_to_future(start_connection_future, wait_for_connection_established)
-
-        return connection_established_future
-
-    def stop_connection(self) -> Future:
-        return self.nm_client._remove_connection_async(self._get_nm_connection())
-
-    def _wait_for_vpn_state(self, vpn_connection: NM.VpnConnection,  target_state: NM.VpnConnectionState):
-        vpn_state_future = Future()
-        vpn_state_future.set_running_or_notify_cancel()
-
-        if target_state not in (NM.VpnConnectionState.ACTIVATED, NM.VpnConnectionState.DISCONNECTED):
-            raise ValueError(f"Unsupported target VPN state: {target_state}")
-
-        def state_changed_callback(_: NM.ActiveConnection, state, reason):
-            """
-            Callback to be called whenever the VPN connection state changes. When the connection state matches
-            the target state, this callback will resolve vpn_state_future.
-            """
-            if state == target_state.real:
-                logger.info(f"VPN connection target state ({target_state}) was reached.")
-                # The future is resolved when the connection has finally been established.
-                vpn_state_future.set_result(target_state)
-            elif state == NM.VpnConnectionState.FAILED.real:
-                vpn_state_future.set_exception(
-                    VPNConnectionError(f"VPN connection failed with reason {reason}.")
-                )
-            else:
-                logger.debug(
-                    f"Waiting for VPN connection state = {target_state.real}. Current: state={state}, reason={reason}"
-                )
-
-        # hook callback to be called whenever the VPN connection changes state
-        handler_id = vpn_connection.connect("vpn-state-changed", state_changed_callback)
-
-        def unregister_state_changed_callback(_: Future):
-            vpn_connection.disconnect(handler_id)
-
-        # unregister vpn state changed callback once the target state has been reached (or an error occurred).
-        vpn_state_future.add_done_callback(unregister_state_changed_callback)
-
-        return vpn_state_future
+    def stop_connection(self, connection=None) -> Future:
+        connection = connection or self._get_nm_connection()
+        return self.nm_client._remove_connection_async(connection)
 
     def _on_vpn_state_changed(self, vpn_connection: NM.VpnConnection, state: int, reason: int):
         """

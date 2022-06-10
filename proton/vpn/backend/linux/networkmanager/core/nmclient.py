@@ -7,6 +7,7 @@ import gi
 gi.require_version("NM", "1.0")
 from gi.repository import NM, GLib
 
+from proton.vpn.connection.exceptions import VPNConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -33,15 +34,15 @@ class NMClient:
                 if not source_object or not res:
                     # On errors, according to the docs, the callback can be called with source_object/res set to None
                     # https://lazka.github.io/pgi-docs/index.html#NM-1.0/classes/Client.html#NM.Client.new_async
-                    raise Exception(f"An unexpected error occurred initializing NMClient: "
-                                    f"source_object = {source_object}, res = {res}.")
+                    raise VPNConnectionError(f"An unexpected error occurred initializing NMClient: "
+                                             f"source_object = {source_object}, res = {res}.")
 
                 result = getattr(source_object, finish_method_name)(res)
 
                 if not result:
                     # According to the docs, None is returned when there was ane error
                     # https://lazka.github.io/pgi-docs/index.html#NM-1.0/classes/Client.html#NM.Client.new_finish
-                    raise Exception("An unexpected error occurred initializing NMCLient")
+                    raise VPNConnectionError("An unexpected error occurred initializing NMCLient")
 
                 future.set_result(result)
             except BaseException as e:
