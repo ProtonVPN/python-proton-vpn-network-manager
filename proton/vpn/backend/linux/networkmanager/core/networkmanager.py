@@ -128,17 +128,8 @@ class LinuxNetworkManager(VPNConnection):
             self.update_connection_state(states.Disconnected())
 
     def _get_servername(self) -> "str":
-        servername = "ProtonVPN Connection"
-        try:
-            servername = "ProtonVPN {}".format(
-                self._vpnserver.servername
-                if self._vpnserver.servername
-                else "Connection"
-            )
-        except AttributeError:
-            servername = "ProtonVPN Connection"
-
-        return servername
+        servername = self._vpnserver.servername or "Connection"
+        return f"ProtonVPN {servername}"
 
     def _setup(self):
         """
@@ -165,8 +156,7 @@ class LinuxNetworkManager(VPNConnection):
             :return: imported vpn connection
             :rtype: NM.SimpleConnection
         """
-        plugin_info = NM.VpnPluginInfo
-        vpn_plugin_list = plugin_info.list_load()
+        vpn_plugin_list = NM.VpnPluginInfo.list_load()
 
         connection = None
         with vpnconfig as filename:
@@ -188,6 +178,7 @@ class LinuxNetworkManager(VPNConnection):
 
         # https://lazka.github.io/pgi-docs/NM-1.0/classes/Connection.html#NM.Connection.normalize
         if connection.normalize():
+            # FIXME: Why do we have this pass statement here?
             pass
 
         return connection
