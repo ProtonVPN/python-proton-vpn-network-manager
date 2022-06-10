@@ -212,45 +212,7 @@ class LinuxNetworkManager(VPNConnection):
         if not self._unique_id:
             return None
 
-        # Gets all active connections
-        active_conn_list = self.nm_client.nm_client.get_active_connections()
-        # Gets all non-active stored connections
-        non_active_conn_list = self.nm_client.nm_client.get_connections()
-
-        # The reason for having this difference is because NM can
-        # have active connections that are not stored. If such
-        # connection is stopped/disabled then it is removed from
-        # NM, and thus the distinction between active and "regular" connections.
-
-        all_conn_list = active_conn_list + non_active_conn_list
-
-        for conn in all_conn_list:
-            # Since a connection can be removed at any point, an AttributeError try/catch
-            # has to be performed, to ensure that a connection that existed previously when
-            # doing the `if` statement was not removed.
-            try:
-                if (
-                    conn.get_connection_type().lower() != "vpn"
-                    and conn.get_connection_type().lower() != "wireguard"
-                ):
-                    continue
-
-                # If it's an active connection then we attempt to get
-                # its stored connection. If an AttributeError is raised
-                # then it means that the conneciton is a stored connection
-                # and not an active connection, and thus the exception
-                # can be safely ignored.
-                try:
-                    conn = conn.get_connection()
-                except AttributeError:
-                    pass
-
-                if self._unique_id == conn.get_uuid():
-                    return conn
-            except AttributeError:
-                pass
-
-        return None
+        return self.nm_client.get_connection(self._unique_id)
 
     def release_resources(self):
         # TODO add this method to VPNConnection so that implementations get the chance to clean resources

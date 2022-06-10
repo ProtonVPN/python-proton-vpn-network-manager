@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class NMClient:
-    nm_client = None
-
     def __init__(self):
         self._main_loop = GLib.MainLoop()
         # Setting daemon=True when creating the thread makes that this thread exits abruptly when the python
@@ -92,6 +90,47 @@ class NMClient:
             None
         )
         return future
+
+    def get_connection(self, uuid=str):
+        # Gets all active connections
+        active_conn_list = self.nm_client.get_active_connections()
+        # Gets all non-active stored connections
+        non_active_conn_list = self.nm_client.get_connections()
+
+        # The reason for having this difference is because NM can
+        # have active connections that are not stored. If such
+        # connection is stopped/disabled then it is removed from
+        # NM, and thus the distinction between active and "regular" connections.
+
+        all_conn_list = active_conn_list + non_active_conn_list
+
+        for conn in all_conn_list:
+            # Since a connection can be removed at any point, an AttributeError try/catch
+            # has to be performed, to ensure that a connection that existed previously when
+            # doing the `if` statement was not removed.
+            try:
+                if (
+                        conn.get_connection_type().lower() != "vpn"
+                        and conn.get_connection_type().lower() != "wireguard"
+                ):
+                    continue
+
+                # If it's an active connection then we attempt to get
+                # its stored connection. If an AttributeError is raised
+                # then it means that the conneciton is a stored connection
+                # and not an active connection, and thus the exception
+                # can be safely ignored.
+                try:
+                    conn = conn.get_connection()
+                except AttributeError:
+                    pass
+
+                if conn.get_uuid() == uuid:
+                    return conn
+            except AttributeError:
+                pass
+
+        return None
 
     def release_resources(self):
         self._main_loop.quit()
