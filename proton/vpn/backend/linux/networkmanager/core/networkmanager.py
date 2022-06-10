@@ -1,6 +1,8 @@
 import logging
 from concurrent.futures import Future
 
+from proton.loader import Loader
+
 from proton.vpn.backend.linux.networkmanager.core.enum import (
     VPNConnectionReasonEnum, VPNConnectionStateEnum)
 from proton.vpn.connection import VPNConnection, events
@@ -33,20 +35,8 @@ class LinuxNetworkManager(VPNConnection):
 
     @classmethod
     def factory(cls, protocol: str = None):
-        """Get VPN connection.
-
-            Returns vpn connection based on specified procotol from factory.
-        """
-        from proton.vpn.connection.exceptions import MissingProtocolDetails
-        from proton.loader import Loader
-
-        all_protocols = Loader.get_all("nm_protocol")
-
-        for _p in all_protocols:
-            if _p.class_name == protocol and _p.cls._validate():
-                return _p.cls
-
-        raise MissingProtocolDetails("Could not find {} protocol".format(protocol))
+        """Returns the VPN connection implementation class for the specified protocol."""
+        return Loader.get("nm_protocol", class_name=protocol)
 
     def start_connection(self, connection=None) -> Future:
         self._setup()  # Creates the network manager connection.
