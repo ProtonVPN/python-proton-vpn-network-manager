@@ -4,7 +4,7 @@ from threading import Thread
 from typing import Callable
 
 import gi
-gi.require_version("NM", "1.0")
+gi.require_version("NM", "1.0")  # noqa: required before importing NM module
 from gi.repository import NM, GLib
 
 from proton.vpn.connection.exceptions import VPNConnectionError
