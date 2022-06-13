@@ -1,10 +1,14 @@
 from concurrent.futures import Future
 from unittest.mock import Mock, patch
 
+import gi
+gi.require_version("NM", "1.0")  # noqa: required before importing NM module
+from gi.repository import NM
+
 import pytest
+
 from proton.vpn.connection import events, states
 
-from proton.vpn.backend.linux.networkmanager.core.enum import VPNConnectionStateEnum, VPNConnectionReasonEnum
 from tests.boilerplate import VPNServer, VPNCredentials, Settings
 from proton.vpn.backend.linux.networkmanager.core import LinuxNetworkManager
 
@@ -26,11 +30,13 @@ class LinuxNetworkManagerProtocol(LinuxNetworkManager):
 def nm_client_mock():
     return Mock()
 
+
 @pytest.fixture
 def nm_protocol(nm_client_mock):
     return LinuxNetworkManagerProtocol(
         VPNServer(), VPNCredentials(), Settings(), nm_client=nm_client_mock
     )
+
 
 @patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")
 def test_start_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
@@ -66,88 +72,73 @@ def test_stop_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
     "state, reason, expected_event",
     [
         (
-                VPNConnectionStateEnum.IS_ACTIVE,
-                VPNConnectionReasonEnum.NOT_PROVIDED,
+                NM.VpnConnectionState.ACTIVATED,
+                NM.VpnConnectionStateReason.NONE,
                 events.Connected
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.CONN_ATTEMPT_TO_SERVICE_TIMED_OUT,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.CONNECT_TIMEOUT,
                 events.Timeout
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.TIMEOUT_WHILE_STARTING_VPN_SERVICE_PROVIDER,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.SERVICE_START_TIMEOUT,
                 events.Timeout
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.SECRETS_WERE_NOT_PROVIDED,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.NO_SECRETS,
                 events.AuthDenied
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.SERVER_AUTH_FAILED,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.LOGIN_FAILED,
                 events.AuthDenied
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.IP_CONFIG_WAS_INVALID,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.IP_CONFIG_INVALID,
                 events.TunnelSetupFail
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.SERVICE_PROVIDER_WAS_STOPPED,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.SERVICE_STOPPED,
                 events.TunnelSetupFail
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.CREATE_SOFTWARE_DEVICE_LINK_FAILED,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.CONNECTION_REMOVED,
                 events.TunnelSetupFail
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.MASTER_CONN_FAILED_TO_ACTIVATE,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.SERVICE_START_FAILED,
                 events.TunnelSetupFail
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.DELETED_FROM_SETTINGS,
-                events.TunnelSetupFail
-        ),
-        (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.START_SERVICE_VPN_CONN_SERVICE_FAILED,
-                events.TunnelSetupFail
-        ),
-        (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.VPN_DEVICE_DISAPPEARED,
-                events.TunnelSetupFail
-        ),
-        (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.DEVICE_WAS_DISCONNECTED,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.DEVICE_DISCONNECTED,
                 events.Disconnected
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.USER_HAS_DISCONNECTED,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.USER_DISCONNECTED,
                 events.Disconnected
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.UNKNOWN,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.UNKNOWN,
                 events.UnknownError
         ),
         (
-                VPNConnectionStateEnum.FAILED,
-                VPNConnectionReasonEnum.NOT_PROVIDED,
+                NM.VpnConnectionState.FAILED,
+                NM.VpnConnectionStateReason.NONE,
                 events.UnknownError
         ),
         (
-                VPNConnectionStateEnum.DISCONNECTED,
-                VPNConnectionReasonEnum.NOT_PROVIDED,
+                NM.VpnConnectionState.DISCONNECTED,
+                NM.VpnConnectionStateReason.NONE,
                 events.Disconnected
         ),
     ]

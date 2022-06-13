@@ -2,9 +2,6 @@ import logging
 from concurrent.futures import Future
 
 from proton.loader import Loader
-
-from proton.vpn.backend.linux.networkmanager.core.enum import (
-    VPNConnectionReasonEnum, VPNConnectionStateEnum)
 from proton.vpn.connection import VPNConnection, events, states
 
 from proton.vpn.backend.linux.networkmanager.core.nmclient import NM, NMClient, gi
@@ -66,45 +63,51 @@ class LinuxNetworkManager(VPNConnection):
             :param reason: the reason for the state update
             :type reason: int
         """
-        state = VPNConnectionStateEnum(state)
-        reason = VPNConnectionReasonEnum(reason)
+        try:
+            state = NM.VpnConnectionState(state)
+        except ValueError:
+            logger.warning(f"Unexpected VPN connection state: {state}.")
+            state = NM.VpnConnectionState.UNKNOWN
 
-        if state == VPNConnectionStateEnum.IS_ACTIVE:
+        try:
+            reason = NM.VpnConnectionStateReason(reason)
+        except ValueError:
+            logger.warning(f"Unexpected VPN connection state reason: {reason}.")
+            reason = NM.VpnConnectionStateReason.UNKNOWN
+
+        logger.debug(f"VPN connection state changed: state={state.value_name}, reason={reason.value_name}")
+
+        if state == NM.VpnConnectionState.ACTIVATED:
             self.on_event(events.Connected())
-        elif state == VPNConnectionStateEnum.FAILED:
+        elif state == NM.VpnConnectionState.FAILED:
             if reason in [
-                VPNConnectionReasonEnum.CONN_ATTEMPT_TO_SERVICE_TIMED_OUT,
-                VPNConnectionReasonEnum.TIMEOUT_WHILE_STARTING_VPN_SERVICE_PROVIDER
+                NM.VpnConnectionStateReason.CONNECT_TIMEOUT,
+                NM.VpnConnectionStateReason.SERVICE_START_TIMEOUT
             ]:
                 self.on_event(events.Timeout(reason))
             elif reason in [
-                VPNConnectionReasonEnum.SECRETS_WERE_NOT_PROVIDED,
-                VPNConnectionReasonEnum.SERVER_AUTH_FAILED
+                NM.VpnConnectionStateReason.NO_SECRETS,
+                NM.VpnConnectionStateReason.LOGIN_FAILED
             ]:
                 self.on_event(events.AuthDenied(reason))
             elif reason in [
-                VPNConnectionReasonEnum.IP_CONFIG_WAS_INVALID,
-                VPNConnectionReasonEnum.SERVICE_PROVIDER_WAS_STOPPED,
-                VPNConnectionReasonEnum.CREATE_SOFTWARE_DEVICE_LINK_FAILED,
-                VPNConnectionReasonEnum.MASTER_CONN_FAILED_TO_ACTIVATE,
-                VPNConnectionReasonEnum.DELETED_FROM_SETTINGS,
-                VPNConnectionReasonEnum.START_SERVICE_VPN_CONN_SERVICE_FAILED,
-                VPNConnectionReasonEnum.VPN_DEVICE_DISAPPEARED
+                NM.VpnConnectionStateReason.IP_CONFIG_INVALID,
+                NM.VpnConnectionStateReason.SERVICE_STOPPED,
+                NM.VpnConnectionStateReason.CONNECTION_REMOVED,
+                NM.VpnConnectionStateReason.SERVICE_START_FAILED,
             ]:
                 self.on_event(events.TunnelSetupFail(reason))
             elif reason in [
-                VPNConnectionReasonEnum.DEVICE_WAS_DISCONNECTED,
-                VPNConnectionReasonEnum.USER_HAS_DISCONNECTED
+                NM.VpnConnectionStateReason.DEVICE_DISCONNECTED,
+                NM.VpnConnectionStateReason.USER_DISCONNECTED
             ]:
                 self.on_event(events.Disconnected(reason))
-            elif reason in [
-                VPNConnectionReasonEnum.UNKNOWN,
-                VPNConnectionReasonEnum.NOT_PROVIDED
-            ]:
+            else:  # reason UNKNOWN or NONE
                 self.on_event(events.UnknownError(reason))
-
-        elif state == VPNConnectionStateEnum.DISCONNECTED:
+        elif state == NM.VpnConnectionState.DISCONNECTED:
             self.on_event(events.Disconnected(reason))
+        else:
+            logger.debug(f"Ignoring VPN state change: {state.value_name}.")
 
     @classmethod
     def _get_connection(cls):
