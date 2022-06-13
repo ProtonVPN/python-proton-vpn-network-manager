@@ -177,9 +177,7 @@ class LinuxNetworkManager(VPNConnection):
             )
 
         # https://lazka.github.io/pgi-docs/NM-1.0/classes/Connection.html#NM.Connection.normalize
-        if connection.normalize():
-            # FIXME: Why do we have this pass statement here?
-            pass
+        connection.normalize()
 
         return connection
 
