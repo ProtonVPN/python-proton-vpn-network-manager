@@ -20,15 +20,15 @@ class LinuxNetworkManager(VPNConnection):
     backend = "linuxnetworkmanager"
 
     def __init__(self, *args, nm_client: NMClient = None, **kwargs):
-        self._nm_client = nm_client
+        self.__nm_client = nm_client
         super().__init__(*args, **kwargs)
 
     @property
     def nm_client(self):
-        if not self._nm_client:
-            self._nm_client = NMClient()
+        if not self.__nm_client:
+            self.__nm_client = NMClient()
 
-        return self._nm_client
+        return self.__nm_client
 
     @classmethod
     def factory(cls, protocol: str = None):
