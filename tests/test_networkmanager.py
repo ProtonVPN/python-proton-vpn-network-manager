@@ -166,12 +166,17 @@ def test_on_vpn_state_changed(on_event, nm_protocol, state, reason, expected_eve
     ]
 )
 @patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager.update_connection_state")
-@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")
-def test_determine_initial_state(_get_nm_connection_mock, update_connection_state_mock, nm_protocol, nm_connection, expected_state):
-    _get_nm_connection_mock.return_value = nm_connection
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_active_connection")
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._ensure_unique_id_is_set")
+def test_determine_initial_state(
+        _ensure_unique_id_is_set_mock, _get_nm_active_connection_mock,
+        update_connection_state_mock, nm_protocol, nm_connection, expected_state
+):
+    _get_nm_active_connection_mock.return_value = nm_connection
 
     nm_protocol.determine_initial_state()
 
+    _ensure_unique_id_is_set_mock.assert_called_once_with()
     update_connection_state_mock.assert_called_once()
     assert isinstance(update_connection_state_mock.call_args.args[0], expected_state)
 

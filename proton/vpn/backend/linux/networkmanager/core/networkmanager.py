@@ -1,5 +1,6 @@
 import logging
 from concurrent.futures import Future
+from typing import Optional
 
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
@@ -122,8 +123,11 @@ class LinuxNetworkManager(VPNConnection):
 
     def determine_initial_state(self) -> "None":
         """Determines the initial state of the state machine"""
-        if self._get_nm_connection():
+        self._ensure_unique_id_is_set()
+        active_connection = self._get_nm_active_connection()
+        if active_connection:
             self.update_connection_state(states.Connected())
+            active_connection.connect("vpn-state-changed", self._on_vpn_state_changed)
         else:
             self.update_connection_state(states.Disconnected())
 
@@ -181,16 +185,16 @@ class LinuxNetworkManager(VPNConnection):
 
         return connection
 
-    def _get_nm_connection(self):
-        """Get ProtonVPN connection.
-
-        :return: vpn connection
-        :rtype: NM.RemoteConnection
-        """
-        self._ensure_unique_id_is_set()
+    def _get_nm_active_connection(self) -> Optional[NM.ActiveConnection]:
+        """Gets ProtonVPN connection, if there is one and is active."""
         if not self._unique_id:
             return None
+        return self.nm_client.get_active_connection(self._unique_id)
 
+    def _get_nm_connection(self) -> Optional[NM.RemoteConnection]:
+        """Get ProtonVPN connection, if there is one."""
+        if not self._unique_id:
+            return None
         return self.nm_client.get_connection(self._unique_id)
 
     def release_resources(self):
