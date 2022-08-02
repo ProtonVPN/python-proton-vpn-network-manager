@@ -19,8 +19,6 @@ BuildRoot: %{_tmppath}/%{unmangled_name}-%{version}-%{release}-buildroot
 
 BuildRequires: python3-gobject
 BuildRequires: python3-dbus
-BuildRequires: python3-cairo
-BuildRequires: python3-dbus-network-manager
 BuildRequires: python3-proton-vpn-connection
 BuildRequires: NetworkManager
 BuildRequires: gobject-introspection
@@ -29,8 +27,6 @@ BuildRequires: python3-setuptools
 
 Requires: python3-gobject
 Requires: python3-dbus
-Requires: python3-cairo
-Requires: python3-dbus-network-manager
 Requires: python3-proton-vpn-connection
 Requires: NetworkManager
 Requires: gobject-introspection
