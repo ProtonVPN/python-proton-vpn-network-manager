@@ -40,7 +40,7 @@ class LinuxNetworkManager(VPNConnection):
         self._setup()  # Creates the network manager connection.
         start_connection_future = self.nm_client._start_connection_async(self._get_nm_connection())
 
-        def hook_vpn_state_changed_callback(start_connection_future_done: Future[NM.VpnConnection]):
+        def hook_vpn_state_changed_callback(start_connection_future_done: Future):
             vpn_connection = start_connection_future_done.result()
             vpn_connection.connect("vpn-state-changed", self._on_vpn_state_changed)
 
