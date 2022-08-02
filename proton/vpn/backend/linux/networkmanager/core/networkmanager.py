@@ -4,6 +4,7 @@ from typing import Optional
 
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
+from proton.vpn.connection.vpnconfiguration import VPNConfiguration
 
 from proton.vpn.backend.linux.networkmanager.core.nmclient import NM, NMClient, gi
 
@@ -14,9 +15,11 @@ class LinuxNetworkManager(VPNConnection):
     """Returns VPNConnections based on Linux Network Manager backend.
 
     This is the default backend that will be returned. See docstring for
-    VPNConnection.get_vpnconnection() for further explanation on how priorities work.
+    VPNConnection.get_vpnconnection() for further explanation on
+    how priorities work.
 
-    A LinuxNetworkManager can return a VPNConnection based on protocols such as OpenVPN, IKEv2 or Wireguard.
+    A LinuxNetworkManager can return a VPNConnection based on protocols
+    such as OpenVPN, IKEv2 or Wireguard.
     """
     backend = "linuxnetworkmanager"
 
@@ -33,19 +36,28 @@ class LinuxNetworkManager(VPNConnection):
 
     @classmethod
     def factory(cls, protocol: str = None):
-        """Returns the VPN connection implementation class for the specified protocol."""
+        """Returns the VPN connection implementation class
+         for the specified protocol."""
         return Loader.get("nm_protocol", class_name=protocol)
 
     def start_connection(self) -> Future:
         self._setup()  # Creates the network manager connection.
-        start_connection_future = self.nm_client._start_connection_async(self._get_nm_connection())
+        start_connection_future = self.nm_client._start_connection_async(
+            self._get_nm_connection()
+        )
 
-        def hook_vpn_state_changed_callback(start_connection_future_done: Future):
+        def hook_vpn_state_changed_callback(
+                start_connection_future_done: Future
+        ):
             vpn_connection = start_connection_future_done.result()
-            vpn_connection.connect("vpn-state-changed", self._on_vpn_state_changed)
+            vpn_connection.connect(
+                "vpn-state-changed",
+                self._on_vpn_state_changed
+            )
 
-        # start_connection_future is done as soon as the VPN connection is activated, but before it's established.
-        # As soon as the connection is activated, we start listening for vpn state changes.
+        # start_connection_future is done as soon as the VPN connection
+        # is activated, but before it's established. As soon as the
+        # connection is activated, we start listening for vpn state changes.
         start_connection_future.add_done_callback(hook_vpn_state_changed_callback)
         return start_connection_future
 
@@ -53,11 +65,14 @@ class LinuxNetworkManager(VPNConnection):
         connection = connection or self._get_nm_connection()
         return self.nm_client._remove_connection_async(connection)
 
-    def _on_vpn_state_changed(self, vpn_connection: NM.VpnConnection, state: int, reason: int):
+    def _on_vpn_state_changed(
+            self, vpn_connection: NM.VpnConnection, state: int, reason: int
+    ):
         """
-            When the vpn state changes, NM emits a signal with the state and reason
-            for the change. This callback will receive these updates and translate for
-            them accordingly for the state machine, as the state machine is backend agnostic.
+            When the vpn state changes, NM emits a signal with the state and
+            reason for the change. This callback will receive these updates
+            and translate for them accordingly for the state machine,
+            as the state machine is backend agnostic.
 
             :param state: connection state update
             :type state: int
@@ -76,7 +91,10 @@ class LinuxNetworkManager(VPNConnection):
             logger.warning(f"Unexpected VPN connection state reason: {reason}.")
             reason = NM.VpnConnectionStateReason.UNKNOWN
 
-        logger.debug(f"VPN connection state changed: state={state.value_name}, reason={reason.value_name}")
+        logger.debug(
+            f"VPN connection state changed: state={state.value_name}, "
+            f"reason={reason.value_name}"
+        )
 
         if state == NM.VpnConnectionState.ACTIVATED:
             self.on_event(events.Connected())
@@ -127,7 +145,10 @@ class LinuxNetworkManager(VPNConnection):
         active_connection = self._get_nm_active_connection()
         if active_connection:
             self.update_connection_state(states.Connected())
-            active_connection.connect("vpn-state-changed", self._on_vpn_state_changed)
+            active_connection.connect(
+                "vpn-state-changed",
+                self._on_vpn_state_changed
+            )
         else:
             self.update_connection_state(states.Disconnected())
 
@@ -152,7 +173,10 @@ class LinuxNetworkManager(VPNConnection):
         # FIX ME: This should do a validation to ensure that NM can be used
         return True
 
-    def _import_vpn_config(self, vpnconfig: "proton.vpn.connection.vpnconfiguration.VPNConfiguration") -> "NM.SimpleConnection":
+    def _import_vpn_config(
+            self,
+            vpnconfig: VPNConfiguration
+    ) -> NM.SimpleConnection:
         """
             Imports the vpn connection configurations into NM
             and stores the connection on non-volatile memory.
@@ -198,6 +222,7 @@ class LinuxNetworkManager(VPNConnection):
         return self.nm_client.get_connection(self._unique_id)
 
     def release_resources(self):
-        # TODO add this method to VPNConnection so that implementations get the chance to clean resources
+        # TODO add this method to VPNConnection so that implementations
+        # get the chance to clean resources
         # VPNConnection.release_resources(self)
         self.nm_client.release_resources()
