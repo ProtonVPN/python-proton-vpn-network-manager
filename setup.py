@@ -11,9 +11,9 @@ setup(
     url="https://github.com/ProtonVPN/pyhon-protonvpn-network-manager",
     packages=find_namespace_packages(include=["proton.vpn.backend.linux.networkmanager.core"]),
     include_package_data=True,
-    install_requires=["proton-core", "proton-vpn-connection"],
+    install_requires=["proton-core", "proton-vpn-connection", "pygobject", "pycairo"],
     extras_require={
-        "development": ["PyGObject", "wheel", "pytest", "pytest-cov"]
+        "development": ["wheel", "pytest", "pytest-cov"]
     },
     entry_points={
         "proton_loader_backend": [
