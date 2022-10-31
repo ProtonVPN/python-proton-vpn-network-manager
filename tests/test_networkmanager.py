@@ -49,7 +49,7 @@ def test_start_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
     _get_nm_connection_mock.return_value = connection_mock
 
     start_connection_future = Future()
-    nm_client_mock._start_connection_async.return_value = start_connection_future
+    nm_client_mock.start_connection_async.return_value = start_connection_future
 
     nm_protocol.start_connection()
 
@@ -57,7 +57,7 @@ def test_start_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
     setup_connection_future.set_result(None)
 
     nm_protocol._setup.assert_called_once()
-    nm_client_mock._start_connection_async.assert_called_once_with(connection_mock)
+    nm_client_mock.start_connection_async.assert_called_once_with(connection_mock)
     # assert that once the connection has been activated, the expected callback is hooked
     # to monitor vpn connection state changes
     start_connection_future.set_result(connection_mock)
@@ -72,7 +72,7 @@ def test_stop_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
 
     nm_protocol.stop_connection(connection_mock)
 
-    nm_client_mock._remove_connection_async.assert_called_once_with(connection_mock)
+    nm_client_mock.remove_connection_async.assert_called_once_with(connection_mock)
 
 
 @pytest.mark.parametrize(

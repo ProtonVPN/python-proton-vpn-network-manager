@@ -1,6 +1,6 @@
 import logging
 from concurrent.futures import Future
-from threading import Thread
+from threading import Thread, Lock
 from typing import Callable, Optional
 
 import gi
@@ -13,24 +13,67 @@ logger = logging.getLogger(__name__)
 
 
 class NMClient:
+    _lock = Lock()
+    _main_context = None
+    _nm_client = None
+
     def __init__(self):
-        self._main_loop = GLib.MainLoop()
+        cls = type(self)
+        with cls._lock:
+            if not cls._nm_client:
+                self._initialize_nm_client_singleton()
+
+    def _initialize_nm_client_singleton(self):
+        cls = type(self)
+        cls._main_context = GLib.MainContext()
+        cls._nm_client = NM.Client()
         # Setting daemon=True when creating the thread makes that this thread
         # exits abruptly when the python process exits. It would be better to
         # exit the thread running the main loop calling self._main_loop.quit().
-        Thread(target=self._main_loop.run, daemon=True).start()
+        Thread(target=cls._run_main_loop, daemon=True).start()
 
         callback, future = self.create_nmcli_callback(
             finish_method_name="new_finish"
         )
-        NM.Client().new_async(None, callback, None)
-        self.nm_client = future.result()
+
+        def new_async():
+            cls._assert_running_on_main_loop_thread()
+            self._nm_client.new_async(cancellable=None, callback=callback, user_data=None)
+
+        cls._run_on_main_loop_thread(new_async)
+        cls._nm_client = future.result()
+
+    @classmethod
+    def _run_main_loop(cls):
+        main_loop = GLib.MainLoop(cls._main_context)
+        cls._main_context.push_thread_default()
+        main_loop.run()
+
+    @classmethod
+    def _assert_running_on_main_loop_thread(cls):
+        """
+        This method asserts that the thread running it is the one iterating
+        GLib's main loop.
+
+        It's useful to call this method at the beginning of any code block
+        that's supposed to run in GLib's main loop, to avoid hard-to-debug
+        issues.
+
+        For more info:
+        https://developer.gnome.org/documentation/tutorials/main-contexts.html#checking-threading
+        """
+        assert cls._main_context.is_owner()
+
+    @classmethod
+    def _run_on_main_loop_thread(cls, function):
+        cls._main_context.invoke_full(priority=GLib.PRIORITY_DEFAULT, function=function)
 
     def create_nmcli_callback(self, finish_method_name: str) -> (Callable, Future):
         future = Future()
         future.set_running_or_notify_cancel()
 
         def callback(source_object, res, userdata):
+            self._assert_running_on_main_loop_thread()
             try:
                 # On errors, according to the docs, the callback can be called
                 # with source_object/res set to None.
@@ -57,63 +100,83 @@ class NMClient:
 
         return callback, future
 
-    def _commit_changes_async(
+    def commit_changes_async(
             self, new_connection: NM.RemoteConnection
     ) -> Future:
         callback, future = self.create_nmcli_callback(
             finish_method_name="commit_changes_finish"
         )
-        new_connection.commit_changes_async(
-            True,
-            None,
-            callback,
-            None
-        )
+
+        def commit_changes_async():
+            self._assert_running_on_main_loop_thread()
+            new_connection.commit_changes_async(
+                True,
+                None,
+                callback,
+                None
+            )
+
+        self._run_on_main_loop_thread(commit_changes_async)
         return future
 
-    def _add_connection_async(self, connection: NM.Connection) -> Future:
+    def add_connection_async(self, connection: NM.Connection) -> Future:
         callback, future = self.create_nmcli_callback(
             finish_method_name="add_connection_finish"
         )
-        self.nm_client.add_connection_async(
-            connection,
-            True,
-            None,
-            callback,
-            None
-        )
+
+        def add_connection_async():
+            self._assert_running_on_main_loop_thread()
+            self._nm_client.add_connection_async(
+                connection,
+                True,
+                None,
+                callback,
+                None
+            )
+
+        self._run_on_main_loop_thread(add_connection_async)
         return future
 
-    def _start_connection_async(self, connection: NM.Connection) -> Future:
+    def start_connection_async(self, connection: NM.Connection) -> Future:
         """Start ProtonVPN connection."""
         callback, future = self.create_nmcli_callback(
             finish_method_name="activate_connection_finish"
         )
-        self.nm_client.activate_connection_async(
-            connection,
-            None,
-            None,
-            None,
-            callback,
-            None
-        )
+
+        def activate_connection_async():
+            self._assert_running_on_main_loop_thread()
+            self._nm_client.activate_connection_async(
+                connection,
+                None,
+                None,
+                None,
+                callback,
+                None
+            )
+
+        self._run_on_main_loop_thread(activate_connection_async)
         return future
 
-    def _remove_connection_async(
+    def remove_connection_async(
             self, connection: NM.RemoteConnection
     ) -> Future:
         callback, future = self.create_nmcli_callback(
             finish_method_name="delete_finish"
         )
-        connection.delete_async(
-            None,
-            callback,
-            None
-        )
+
+        def delete_async():
+            self._assert_running_on_main_loop_thread()
+            connection.delete_async(
+                None,
+                callback,
+                None
+            )
+
+        self._run_on_main_loop_thread(delete_async)
         return future
 
     def get_active_connection(self, uuid: str) -> Optional[NM.ActiveConnection]:
-        active_connections = self.nm_client.get_active_connections()
+        active_connections = self._nm_client.get_active_connections()
 
         for connection in active_connections:
             if connection.get_uuid() == uuid:
@@ -122,7 +185,4 @@ class NMClient:
         return None
 
     def get_connection(self, uuid: str) -> Optional[NM.RemoteConnection]:
-        return self.nm_client.get_connection_by_uuid(uuid)
-
-    def release_resources(self):
-        self._main_loop.quit()
+        return self._nm_client.get_connection_by_uuid(uuid)

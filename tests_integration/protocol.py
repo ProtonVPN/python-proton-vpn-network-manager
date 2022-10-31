@@ -106,7 +106,7 @@ class OpenVPN(LinuxNetworkManager):
         vpnconfig.use_certificate = self._use_certificate
 
         self._configure_connection(vpnconfig)
-        future = self.nm_client._add_connection_async(self.connection)
+        future = self.nm_client.add_connection_async(self.connection)
         future.result()  # FIXME: we should probably return the future instead
 
 

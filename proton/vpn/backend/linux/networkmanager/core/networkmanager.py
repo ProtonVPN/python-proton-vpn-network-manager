@@ -40,7 +40,7 @@ class LinuxNetworkManager(VPNConnection):
          for the specified protocol."""
         return Loader.get("nm_protocol", class_name=protocol)
 
-    def start_connection(self) -> Future:
+    def start_connection(self):
         future = self._setup()  # Creates the network manager connection.
         future.add_done_callback(self._start_connection)
 
@@ -48,7 +48,7 @@ class LinuxNetworkManager(VPNConnection):
         # Calling result() will re-raise any exceptions raised during the connection setup.
         connection_setup_future.result()
 
-        start_connection_future = self.nm_client._start_connection_async(
+        start_connection_future = self.nm_client.start_connection_async(
             self._get_nm_connection()
         )
 
@@ -65,11 +65,10 @@ class LinuxNetworkManager(VPNConnection):
         # is activated, but before it's established. As soon as the
         # connection is activated, we start listening for vpn state changes.
         start_connection_future.add_done_callback(hook_vpn_state_changed_callback)
-        return start_connection_future
 
-    def stop_connection(self, connection=None) -> Future:
+    def stop_connection(self, connection=None):
         connection = connection or self._get_nm_connection()
-        return self.nm_client._remove_connection_async(connection)
+        self.nm_client.remove_connection_async(connection)
 
     def _on_vpn_state_changed(
             self, vpn_connection: NM.VpnConnection, state: int, reason: int
@@ -226,9 +225,3 @@ class LinuxNetworkManager(VPNConnection):
         if not self._unique_id:
             return None
         return self.nm_client.get_connection(self._unique_id)
-
-    def release_resources(self):
-        # TODO add this method to VPNConnection so that implementations
-        # get the chance to clean resources
-        # VPNConnection.release_resources(self)
-        self.nm_client.release_resources()
