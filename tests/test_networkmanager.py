@@ -40,6 +40,10 @@ def nm_protocol(nm_client_mock):
 
 @patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")
 def test_start_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
+    # mock setup connection
+    setup_connection_future = Future()
+    nm_protocol._setup.return_value = setup_connection_future
+
     # mock NM connection
     connection_mock = Mock()
     _get_nm_connection_mock.return_value = connection_mock
@@ -48,6 +52,9 @@ def test_start_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
     nm_client_mock._start_connection_async.return_value = start_connection_future
 
     nm_protocol.start_connection()
+
+    # Simulate setup connection finished.
+    setup_connection_future.set_result(None)
 
     nm_protocol._setup.assert_called_once()
     nm_client_mock._start_connection_async.assert_called_once_with(connection_mock)

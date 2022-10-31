@@ -41,7 +41,13 @@ class LinuxNetworkManager(VPNConnection):
         return Loader.get("nm_protocol", class_name=protocol)
 
     def start_connection(self) -> Future:
-        self._setup()  # Creates the network manager connection.
+        future = self._setup()  # Creates the network manager connection.
+        future.add_done_callback(self._start_connection)
+
+    def _start_connection(self, connection_setup_future: Future):
+        # Calling result() will re-raise any exceptions raised during the connection setup.
+        connection_setup_future.result()
+
         start_connection_future = self.nm_client._start_connection_async(
             self._get_nm_connection()
         )
