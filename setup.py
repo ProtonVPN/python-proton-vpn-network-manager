@@ -13,7 +13,7 @@ setup(
     include_package_data=True,
     install_requires=["proton-core", "proton-vpn-connection", "pygobject", "pycairo"],
     extras_require={
-        "development": ["wheel", "pytest", "pytest-cov"]
+        "development": ["wheel", "pytest", "pytest-cov", "flake8", "pylint"]
     },
     entry_points={
         "proton_loader_backend": [

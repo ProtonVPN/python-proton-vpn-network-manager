@@ -1,3 +1,6 @@
+"""
+Base class for VPN connections created with NetworkManager.
+"""
 import logging
 from concurrent.futures import Future
 from typing import Optional
@@ -29,6 +32,7 @@ class LinuxNetworkManager(VPNConnection):
 
     @property
     def nm_client(self):
+        """Returns the NetworkManager client."""
         if not self.__nm_client:
             self.__nm_client = NMClient()
 
@@ -41,6 +45,7 @@ class LinuxNetworkManager(VPNConnection):
         return Loader.get("nm_protocol", class_name=protocol)
 
     def start_connection(self):
+        """Starts a VPN connection using NetworkManager."""
         future = self._setup()  # Creates the network manager connection.
         future.add_done_callback(self._start_connection)
 
@@ -67,9 +72,11 @@ class LinuxNetworkManager(VPNConnection):
         start_connection_future.add_done_callback(hook_vpn_state_changed_callback)
 
     def stop_connection(self, connection=None):
+        """Stops the VPN connection."""
         connection = connection or self._get_nm_connection()
         self.nm_client.remove_connection_async(connection)
 
+    # pylint: disable=unused-argument
     def _on_vpn_state_changed(
             self, vpn_connection: NM.VpnConnection, state: int, reason: int
     ):
@@ -87,18 +94,18 @@ class LinuxNetworkManager(VPNConnection):
         try:
             state = NM.VpnConnectionState(state)
         except ValueError:
-            logger.warning(f"Unexpected VPN connection state: {state}.")
+            logger.warning("Unexpected VPN connection state: %s", state)
             state = NM.VpnConnectionState.UNKNOWN
 
         try:
             reason = NM.VpnConnectionStateReason(reason)
         except ValueError:
-            logger.warning(f"Unexpected VPN connection state reason: {reason}.")
+            logger.warning("Unexpected VPN connection state reason: %s", reason)
             reason = NM.VpnConnectionStateReason.UNKNOWN
 
         logger.debug(
-            f"VPN connection state changed: state={state.value_name}, "
-            f"reason={reason.value_name}"
+            "VPN connection state changed: state=%s, reason=%s",
+            state.value_name, reason.value_name
         )
 
         if state == NM.VpnConnectionState.ACTIVATED:
@@ -131,18 +138,18 @@ class LinuxNetworkManager(VPNConnection):
         elif state == NM.VpnConnectionState.DISCONNECTED:
             self.on_event(events.Disconnected(reason))
         else:
-            logger.debug(f"Ignoring VPN state change: {state.value_name}.")
+            logger.debug("Ignoring VPN state change: %s", state.value_name)
 
     @classmethod
     def _get_connection(cls):
-        from proton.vpn.connection import states
-        from proton.loader import Loader
         all_protocols = Loader.get_all("nm_protocol")
 
         for _p in all_protocols:
             vpnconnection = _p.cls(None, None)
             if vpnconnection.status.state == states.Connected.state:
                 return vpnconnection
+
+        return None
 
     def determine_initial_state(self) -> "None":
         """Determines the initial state of the state machine"""

@@ -1,3 +1,6 @@
+"""
+Wrapper over the NetworkManager client.
+"""
 import logging
 from concurrent.futures import Future
 from threading import Thread, Lock
@@ -5,6 +8,7 @@ from typing import Callable, Optional
 
 import gi
 gi.require_version("NM", "1.0")  # noqa: required before importing NM module
+# pylint: disable=wrong-import-position
 from gi.repository import NM, GLib
 
 from proton.vpn.connection.exceptions import VPNConnectionError
@@ -13,15 +17,20 @@ logger = logging.getLogger(__name__)
 
 
 class NMClient:
+    """
+    Wrapper over the NetworkManager client.
+    It also starts the GLib main loop used by the NetworkManager client.
+    """
     _lock = Lock()
     _main_context = None
     _nm_client = None
 
     def __init__(self):
         cls = type(self)
-        with cls._lock:
-            if not cls._nm_client:
-                self._initialize_nm_client_singleton()
+        if not cls._nm_client:
+            with cls._lock:
+                if not cls._nm_client:
+                    self._initialize_nm_client_singleton()
 
     def _initialize_nm_client_singleton(self):
         cls = type(self)
@@ -69,10 +78,12 @@ class NMClient:
         cls._main_context.invoke_full(priority=GLib.PRIORITY_DEFAULT, function=function)
 
     def create_nmcli_callback(self, finish_method_name: str) -> (Callable, Future):
+        """Creates a callback for the NM client finish method and a Future that will
+        resolve once the callback is called."""
         future = Future()
         future.set_running_or_notify_cancel()
 
-        def callback(source_object, res, userdata):
+        def callback(source_object, res, userdata):  # pylint: disable=unused-argument
             self._assert_running_on_main_loop_thread()
             try:
                 # On errors, according to the docs, the callback can be called
@@ -95,14 +106,19 @@ class NMClient:
                     )
 
                 future.set_result(result)
-            except BaseException as e:
-                future.set_exception(e)
+            except BaseException as exc:  # pylint: disable=broad-except
+                future.set_exception(exc)
 
         return callback, future
 
     def commit_changes_async(
             self, new_connection: NM.RemoteConnection
     ) -> Future:
+        """
+        Commits changes asynchronously.
+        https://lazka.github.io/pgi-docs/#NM-1.0/classes/RemoteConnection.html#NM.RemoteConnection.commit_changes_async
+        :return: a Future to keep track of completion.
+        """
         callback, future = self.create_nmcli_callback(
             finish_method_name="commit_changes_finish"
         )
@@ -120,6 +136,12 @@ class NMClient:
         return future
 
     def add_connection_async(self, connection: NM.Connection) -> Future:
+        """
+        Adds a new connection asynchronously.
+        https://lazka.github.io/pgi-docs/#NM-1.0/classes/Client.html#NM.Client.add_connection_async
+        :param connection: connection to be added.
+        :return: a Future to keep track of completion.
+        """
         callback, future = self.create_nmcli_callback(
             finish_method_name="add_connection_finish"
         )
@@ -138,7 +160,11 @@ class NMClient:
         return future
 
     def start_connection_async(self, connection: NM.Connection) -> Future:
-        """Start ProtonVPN connection."""
+        """Starts a VPN connection asynchronously.
+        :param connection: connection to be started.
+        :return: Future to know when the connection has been started. Note that
+        is just after the connection has started but before it is established.
+        """
         callback, future = self.create_nmcli_callback(
             finish_method_name="activate_connection_finish"
         )
@@ -160,6 +186,12 @@ class NMClient:
     def remove_connection_async(
             self, connection: NM.RemoteConnection
     ) -> Future:
+        """
+        Removes the specified connection asynchronously.
+        https://lazka.github.io/pgi-docs/#NM-1.0/classes/RemoteConnection.html#NM.RemoteConnection.delete_async
+        :param connection: connection to be removed.
+        :return: a Future to keep track of completion.
+        """
         callback, future = self.create_nmcli_callback(
             finish_method_name="delete_finish"
         )
@@ -176,6 +208,11 @@ class NMClient:
         return future
 
     def get_active_connection(self, uuid: str) -> Optional[NM.ActiveConnection]:
+        """
+        Returns the specified active connection, if existing.
+        :param uuid: UUID of the active connection.
+        :return: the active connection if it was found. Otherwise, None.
+        """
         active_connections = self._nm_client.get_active_connections()
 
         for connection in active_connections:
@@ -185,4 +222,9 @@ class NMClient:
         return None
 
     def get_connection(self, uuid: str) -> Optional[NM.RemoteConnection]:
+        """
+        Returns the specified connection, if existing.
+        :param uuid: UUID of the connection.
+        :return: the connection if it was found. Otherwise, None.
+        """
         return self._nm_client.get_connection_by_uuid(uuid)
