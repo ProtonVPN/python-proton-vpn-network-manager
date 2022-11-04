@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.0.1
+%define version 0.0.2
 %define release 1
 
 Prefix: %{_prefix}
@@ -55,5 +55,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Fri Nov 4 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.0.2
+- Set up connection asynchronously
+- Run a single separate main loop for NM client
+
 * Wed Jun 1 2022 Proton Technologies AG <opensource@proton.me> 0.0.1
 - First RPM release
