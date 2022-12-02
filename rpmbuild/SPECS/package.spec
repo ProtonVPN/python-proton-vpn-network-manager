@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.0.2
+%define version 0.1.0
 %define release 1
 
 Prefix: %{_prefix}
@@ -55,6 +55,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Fri Dec 02 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.1.0
+- Add persisted connection parameters to connection state
+
 * Fri Nov 4 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.0.2
 - Set up connection asynchronously
 - Run a single separate main loop for NM client
