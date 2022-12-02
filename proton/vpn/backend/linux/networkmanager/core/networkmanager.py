@@ -8,6 +8,7 @@ from typing import Optional
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
 from proton.vpn.connection.vpnconfiguration import VPNConfiguration
+from proton.vpn.connection.states import StateContext
 
 from proton.vpn.backend.linux.networkmanager.core.nmclient import NM, NMClient, gi
 
@@ -156,7 +157,10 @@ class LinuxNetworkManager(VPNConnection):
         self._ensure_unique_id_is_set()
         active_connection = self._get_nm_active_connection()
         if active_connection:
-            self.update_connection_state(states.Connected())
+            connected = states.Connected(
+                StateContext(connection=self)
+            )
+            self.update_connection_state(connected)
             active_connection.connect(
                 "vpn-state-changed",
                 self._on_vpn_state_changed
@@ -165,8 +169,8 @@ class LinuxNetworkManager(VPNConnection):
             self.update_connection_state(states.Disconnected())
 
     def _get_servername(self) -> "str":
-        servername = self._vpnserver.servername or "Connection"
-        return f"ProtonVPN {servername}"
+        server_name = self._vpnserver.server_name or "Connection"
+        return f"ProtonVPN {server_name}"
 
     def _setup(self):
         """
