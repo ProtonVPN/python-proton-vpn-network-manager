@@ -1,3 +1,5 @@
+variables:
+  ALLOW_LINTING_FAILURE: "true"
 include:
  - project: 'ProtonVPN/Linux/new-client/integration/ci-libraries'
    ref: develop
