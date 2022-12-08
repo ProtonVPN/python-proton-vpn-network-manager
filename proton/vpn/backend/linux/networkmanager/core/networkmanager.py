@@ -109,9 +109,9 @@ class LinuxNetworkManager(VPNConnection):
             state.value_name, reason.value_name
         )
 
-        if state == NM.VpnConnectionState.ACTIVATED:
+        if state is NM.VpnConnectionState.ACTIVATED:
             self.on_event(events.Connected())
-        elif state == NM.VpnConnectionState.FAILED:
+        elif state is NM.VpnConnectionState.FAILED:
             if reason in [
                 NM.VpnConnectionStateReason.CONNECT_TIMEOUT,
                 NM.VpnConnectionStateReason.SERVICE_START_TIMEOUT
@@ -121,23 +121,42 @@ class LinuxNetworkManager(VPNConnection):
                 NM.VpnConnectionStateReason.NO_SECRETS,
                 NM.VpnConnectionStateReason.LOGIN_FAILED
             ]:
+                # NO_SECRETS is passed when the user cancels the NM popup
+                # to introduce the OpenVPN password. If we switch auth to
+                # certificates, we should treat NO_SECRETS as an
+                # UnexpectedDisconnection event.
                 self.on_event(events.AuthDenied(reason))
-            elif reason in [
-                NM.VpnConnectionStateReason.IP_CONFIG_INVALID,
-                NM.VpnConnectionStateReason.SERVICE_STOPPED,
-                NM.VpnConnectionStateReason.CONNECTION_REMOVED,
-                NM.VpnConnectionStateReason.SERVICE_START_FAILED,
-            ]:
-                self.on_event(events.TunnelSetupFail(reason))
-            elif reason in [
-                NM.VpnConnectionStateReason.DEVICE_DISCONNECTED,
-                NM.VpnConnectionStateReason.USER_DISCONNECTED
-            ]:
-                self.on_event(events.Disconnected(reason))
-            else:  # reason UNKNOWN or NONE
-                self.on_event(events.UnknownError(reason))
+            else:
+                # reason in [
+                #     NM.VpnConnectionStateReason.UNKNOWN,
+                #     NM.VpnConnectionStateReason.NONE,
+                #     NM.VpnConnectionStateReason.USER_DISCONNECTED,
+                #     NM.VpnConnectionStateReason.DEVICE_DISCONNECTED,
+                #     NM.VpnConnectionStateReason.SERVICE_STOPPED,
+                #     NM.VpnConnectionStateReason.IP_CONFIG_INVALID,
+                #     NM.VpnConnectionStateReason.SERVICE_START_FAILED,
+                #     NM.VpnConnectionStateReason.CONNECTION_REMOVED,
+                # ]
+                self.on_event(events.UnexpectedError(reason))
         elif state == NM.VpnConnectionState.DISCONNECTED:
-            self.on_event(events.Disconnected(reason))
+            if reason in [NM.VpnConnectionStateReason.USER_DISCONNECTED]:
+                self.on_event(events.Disconnected(reason))
+            elif reason is NM.VpnConnectionStateReason.DEVICE_DISCONNECTED:
+                self.on_event(events.DeviceDisconnected(reason))
+            else:
+                # reason in [
+                #     NM.VpnConnectionStateReason.UNKNOWN,
+                #     NM.VpnConnectionStateReason.NONE,
+                #     NM.VpnConnectionStateReason.SERVICE_STOPPED,
+                #     NM.VpnConnectionStateReason.IP_CONFIG_INVALID,
+                #     NM.VpnConnectionStateReason.CONNECT_TIMEOUT,
+                #     NM.VpnConnectionStateReason.SERVICE_START_TIMEOUT,
+                #     NM.VpnConnectionStateReason.SERVICE_START_FAILED,
+                #     NM.VpnConnectionStateReason.NO_SECRETS,
+                #     NM.VpnConnectionStateReason.LOGIN_FAILED,
+                #     NM.VpnConnectionStateReason.CONNECTION_REMOVED,
+                # ]
+                self.on_event(events.UnexpectedError(reason))
         else:
             logger.debug("Ignoring VPN state change: %s", state.value_name)
 

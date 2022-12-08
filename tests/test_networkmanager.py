@@ -106,47 +106,47 @@ def test_stop_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
         (
                 NM.VpnConnectionState.FAILED,
                 NM.VpnConnectionStateReason.IP_CONFIG_INVALID,
-                events.TunnelSetupFail
+                events.UnexpectedError
         ),
         (
                 NM.VpnConnectionState.FAILED,
                 NM.VpnConnectionStateReason.SERVICE_STOPPED,
-                events.TunnelSetupFail
+                events.UnexpectedError
         ),
         (
                 NM.VpnConnectionState.FAILED,
                 NM.VpnConnectionStateReason.CONNECTION_REMOVED,
-                events.TunnelSetupFail
+                events.UnexpectedError
         ),
         (
                 NM.VpnConnectionState.FAILED,
                 NM.VpnConnectionStateReason.SERVICE_START_FAILED,
-                events.TunnelSetupFail
-        ),
-        (
-                NM.VpnConnectionState.FAILED,
-                NM.VpnConnectionStateReason.DEVICE_DISCONNECTED,
-                events.Disconnected
-        ),
-        (
-                NM.VpnConnectionState.FAILED,
-                NM.VpnConnectionStateReason.USER_DISCONNECTED,
-                events.Disconnected
+                events.UnexpectedError
         ),
         (
                 NM.VpnConnectionState.FAILED,
                 NM.VpnConnectionStateReason.UNKNOWN,
-                events.UnknownError
+                events.UnexpectedError
         ),
         (
                 NM.VpnConnectionState.FAILED,
                 NM.VpnConnectionStateReason.NONE,
-                events.UnknownError
+                events.UnexpectedError
+        ),
+        (
+                NM.VpnConnectionState.DISCONNECTED,
+                NM.VpnConnectionStateReason.DEVICE_DISCONNECTED,
+                events.DeviceDisconnected
+        ),
+        (
+                NM.VpnConnectionState.DISCONNECTED,
+                NM.VpnConnectionStateReason.USER_DISCONNECTED,
+                events.Disconnected
         ),
         (
                 NM.VpnConnectionState.DISCONNECTED,
                 NM.VpnConnectionStateReason.NONE,
-                events.Disconnected
+                events.UnexpectedError
         ),
     ]
 )
