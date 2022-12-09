@@ -149,11 +149,11 @@ class NMClient:
         def add_connection_async():
             self._assert_running_on_main_loop_thread()
             self._nm_client.add_connection_async(
-                connection,
-                True,
-                None,
-                callback,
-                None
+                connection=connection,
+                save_to_disk=False,
+                cancellable=None,
+                callback=callback,
+                user_data=None
             )
 
         self._run_on_main_loop_thread(add_connection_async)
