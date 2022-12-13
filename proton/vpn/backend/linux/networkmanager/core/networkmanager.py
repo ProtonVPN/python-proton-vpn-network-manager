@@ -10,7 +10,7 @@ from proton.vpn.connection import VPNConnection, events, states
 from proton.vpn.connection.vpnconfiguration import VPNConfiguration
 from proton.vpn.connection.states import StateContext
 
-from proton.vpn.backend.linux.networkmanager.core.nmclient import NM, NMClient, gi
+from proton.vpn.backend.linux.networkmanager.core.nmclient import NM, NMClient, GLib
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,14 @@ class LinuxNetworkManager(VPNConnection):
 
     def _start_connection(self, connection_setup_future: Future):
         # Calling result() will re-raise any exceptions raised during the connection setup.
-        connection_setup_future.result()
+        try:
+            connection_setup_future.result()
+        except GLib.GError:
+            logger.exception("Error adding NetworkManager connection.")
+            self.on_event(events.TunnelSetupFailed(
+                context=NM.VpnConnectionStateReason.NONE.real
+            ))
+            return
 
         start_connection_future = self.nm_client.start_connection_async(
             self._get_nm_connection()
@@ -61,7 +68,15 @@ class LinuxNetworkManager(VPNConnection):
         def hook_vpn_state_changed_callback(
                 start_connection_future_done: Future
         ):
-            vpn_connection = start_connection_future_done.result()
+            try:
+                vpn_connection = start_connection_future_done.result()
+            except GLib.GError:
+                logger.exception("Error starting NetworkManager connection.")
+                self.on_event(events.TunnelSetupFailed(
+                    context=NM.VpnConnectionStateReason.NONE.real
+                ))
+                return
+
             vpn_connection.connect(
                 "vpn-state-changed",
                 self._on_vpn_state_changed
@@ -231,7 +246,7 @@ class LinuxNetworkManager(VPNConnection):
                     # plugin_name = plugin.props.name
                     connection = plugin_editor.import_(filename)
                     break
-                except gi.repository.GLib.Error:
+                except GLib.Error:
                     continue
 
         if connection is None:
