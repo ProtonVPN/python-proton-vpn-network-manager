@@ -25,15 +25,28 @@ class NMClient:
     _main_context = None
     _nm_client = None
 
-    def __init__(self):
-        cls = type(self)
-        if not cls._nm_client:
-            with cls._lock:
-                if not cls._nm_client:
-                    self._initialize_nm_client_singleton()
+    @classmethod
+    def initialize_nm_client_singleton(cls):
+        """
+        Initializes the NetworkManager client singleton.
 
-    def _initialize_nm_client_singleton(self):
-        cls = type(self)
+        If the singleton was initialized, this method will do nothing. However,
+        if the singleton wasn't initialized it will initialize it, starting
+        a new GLib MainLoop.
+
+        A double-checked lock is used to avoid the possibility of multiple
+        threads concurrently creating multiple instances of the NM client
+        (with their own main loops).
+        """
+        if cls._nm_client:
+            return
+
+        with cls._lock:
+            if not cls._nm_client:
+                cls._initialize_nm_client_singleton()
+
+    @classmethod
+    def _initialize_nm_client_singleton(cls):
         cls._main_context = GLib.MainContext()
         cls._nm_client = NM.Client()
         # Setting daemon=True when creating the thread makes that this thread
@@ -41,13 +54,13 @@ class NMClient:
         # exit the thread running the main loop calling self._main_loop.quit().
         Thread(target=cls._run_main_loop, daemon=True).start()
 
-        callback, future = self.create_nmcli_callback(
+        callback, future = cls.create_nmcli_callback(
             finish_method_name="new_finish"
         )
 
         def new_async():
             cls._assert_running_on_main_loop_thread()
-            self._nm_client.new_async(cancellable=None, callback=callback, user_data=None)
+            cls._nm_client.new_async(cancellable=None, callback=callback, user_data=None)
 
         cls._run_on_main_loop_thread(new_async)
         cls._nm_client = future.result()
@@ -77,14 +90,15 @@ class NMClient:
     def _run_on_main_loop_thread(cls, function):
         cls._main_context.invoke_full(priority=GLib.PRIORITY_DEFAULT, function=function)
 
-    def create_nmcli_callback(self, finish_method_name: str) -> (Callable, Future):
+    @classmethod
+    def create_nmcli_callback(cls, finish_method_name: str) -> (Callable, Future):
         """Creates a callback for the NM client finish method and a Future that will
         resolve once the callback is called."""
         future = Future()
         future.set_running_or_notify_cancel()
 
         def callback(source_object, res, userdata):  # pylint: disable=unused-argument
-            self._assert_running_on_main_loop_thread()
+            cls._assert_running_on_main_loop_thread()
             try:
                 # On errors, according to the docs, the callback can be called
                 # with source_object/res set to None.
@@ -110,6 +124,9 @@ class NMClient:
                 future.set_exception(exc)
 
         return callback, future
+
+    def __init__(self):
+        self.initialize_nm_client_singleton()
 
     def commit_changes_async(
             self, new_connection: NM.RemoteConnection
