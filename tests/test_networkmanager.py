@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 import gi
 gi.require_version("NM", "1.0")  # noqa: required before importing NM module
-from gi.repository import NM
+from gi.repository import NM, GLib
 
 import pytest
 
@@ -11,6 +11,8 @@ from proton.vpn.connection import events, states
 
 from tests.boilerplate import VPNServer, VPNCredentials, Settings
 from proton.vpn.backend.linux.networkmanager.core import LinuxNetworkManager
+from proton.vpn.connection import states
+from proton.vpn.connection import events
 
 
 class LinuxNetworkManagerProtocol(LinuxNetworkManager):
@@ -38,30 +40,70 @@ def nm_protocol(nm_client_mock):
     )
 
 
-@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")
-def test_start_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
+def test_start_connection(nm_protocol, nm_client_mock):
     # mock setup connection
     setup_connection_future = Future()
     nm_protocol._setup.return_value = setup_connection_future
-
-    # mock NM connection
-    connection_mock = Mock()
-    _get_nm_connection_mock.return_value = connection_mock
 
     start_connection_future = Future()
     nm_client_mock.start_connection_async.return_value = start_connection_future
 
     nm_protocol.start_connection()
 
-    # Simulate setup connection finished.
-    setup_connection_future.set_result(None)
-
     nm_protocol._setup.assert_called_once()
+
+    # Simulate setup connection finished.
+    connection_mock = Mock()
+    setup_connection_future.set_result(connection_mock)
+
     nm_client_mock.start_connection_async.assert_called_once_with(connection_mock)
-    # assert that once the connection has been activated, the expected callback is hooked
-    # to monitor vpn connection state changes
+
+    # Assert that once the connection has been activated, the expected callback
+    # is hooked to monitor vpn connection state changes.
     start_connection_future.set_result(connection_mock)
     connection_mock.connect.assert_called_once_with("vpn-state-changed", nm_protocol._on_vpn_state_changed)
+
+
+def test_start_connection_generates_tunnel_setup_failed_event_on_connection_setup_errors(
+        nm_protocol, nm_client_mock
+):
+    # Mock error on connection setup.
+    setup_connection_future = Future()
+    setup_connection_future.set_exception(GLib.GError)
+    nm_protocol._setup.return_value = setup_connection_future
+
+    with patch.object(nm_protocol, "on_event"):
+        nm_protocol.start_connection()
+
+        nm_protocol._setup.assert_called()
+        nm_protocol.on_event.assert_called()
+
+        generated_event = nm_protocol.on_event.call_args[0][0]
+        assert isinstance(generated_event, events.TunnelSetupFailed)
+
+
+def test_start_connection_generates_tunnel_setup_failed_event_on_connection_activation_errors(
+        nm_protocol, nm_client_mock
+):
+    # Mock successful connection setup.
+    connection = Mock()
+    setup_connection_future = Future()
+    setup_connection_future.set_result(connection)
+    nm_protocol._setup.return_value = setup_connection_future
+
+    # Mock error on connection activation.
+    start_connection_future = Future()
+    start_connection_future.set_exception(GLib.GError)
+    nm_client_mock.start_connection_async.return_value = start_connection_future
+
+    with patch.object(nm_protocol, "on_event"):
+        nm_protocol.start_connection()
+
+        nm_client_mock.start_connection_async.assert_called_once_with(connection)
+        nm_protocol.on_event.assert_called()
+
+        generated_event = nm_protocol.on_event.call_args[0][0]
+        assert isinstance(generated_event, events.TunnelSetupFailed)
 
 
 @patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")

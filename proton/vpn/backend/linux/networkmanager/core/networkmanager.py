@@ -53,7 +53,7 @@ class LinuxNetworkManager(VPNConnection):
     def _start_connection(self, connection_setup_future: Future):
         # Calling result() will re-raise any exceptions raised during the connection setup.
         try:
-            connection_setup_future.result()
+            connection = connection_setup_future.result()
         except GLib.GError:
             logger.exception("Error adding NetworkManager connection.")
             self.on_event(events.TunnelSetupFailed(
@@ -61,9 +61,7 @@ class LinuxNetworkManager(VPNConnection):
             ))
             return
 
-        start_connection_future = self.nm_client.start_connection_async(
-            self._get_nm_connection()
-        )
+        start_connection_future = self.nm_client.start_connection_async(connection)
 
         def hook_vpn_state_changed_callback(
                 start_connection_future_done: Future
