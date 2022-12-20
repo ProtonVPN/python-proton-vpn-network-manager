@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.2.0
+%define version 0.2.1
 %define release 1
 
 Prefix: %{_prefix}
@@ -55,6 +55,11 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Tue Dec 20 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.2.1
+- Handle errors happening while setting up or starting the connection
+- Split stop_connection in 2: stop_connection and remove_connection
+- Ovewrite remove_persistence so that it also removes the NM connection
+
 * Wed Dec 14 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.2.0
 - Handle device disconnected event
 
