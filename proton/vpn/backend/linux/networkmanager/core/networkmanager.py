@@ -99,6 +99,10 @@ class LinuxNetworkManager(VPNConnection):
             return
         self.nm_client.remove_connection_async(connection)
 
+    def remove_persistence(self):
+        super().remove_persistence()
+        self.remove_connection()
+
     # pylint: disable=unused-argument
     def _on_vpn_state_changed(
             self, vpn_connection: NM.VpnConnection, state: int, reason: int

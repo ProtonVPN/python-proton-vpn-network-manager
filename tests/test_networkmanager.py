@@ -7,8 +7,6 @@ from gi.repository import NM, GLib
 
 import pytest
 
-from proton.vpn.connection import events, states
-
 from tests.boilerplate import VPNServer, VPNCredentials, Settings
 from proton.vpn.backend.linux.networkmanager.core import LinuxNetworkManager
 from proton.vpn.connection import states
@@ -106,13 +104,24 @@ def test_start_connection_generates_tunnel_setup_failed_event_on_connection_acti
         assert isinstance(generated_event, events.TunnelSetupFailed)
 
 
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_active_connection")
+def test_stop_connection(_get_nm_active_connection_mock, nm_protocol, nm_client_mock):
+    # mock NM connection
+    connection_mock = Mock()
+    _get_nm_active_connection_mock.return_value = connection_mock
+
+    nm_protocol.stop_connection()
+
+    nm_client_mock.stop_connection_async.assert_called_once_with(connection_mock)
+
+
 @patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")
-def test_stop_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
+def test_remove_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
     # mock NM connection
     connection_mock = Mock()
     _get_nm_connection_mock.return_value = connection_mock
 
-    nm_protocol.stop_connection(connection_mock)
+    nm_protocol.remove_connection()
 
     nm_client_mock.remove_connection_async.assert_called_once_with(connection_mock)
 
