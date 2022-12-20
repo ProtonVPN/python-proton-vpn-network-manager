@@ -87,7 +87,16 @@ class LinuxNetworkManager(VPNConnection):
 
     def stop_connection(self, connection=None):
         """Stops the VPN connection."""
+        connection = connection or self._get_nm_active_connection()
+        if not connection:
+            return
+        self.nm_client.stop_connection_async(connection)
+
+    def remove_connection(self, connection=None):
+        """Removes the VPN connection."""
         connection = connection or self._get_nm_connection()
+        if not connection:
+            return
         self.nm_client.remove_connection_async(connection)
 
     # pylint: disable=unused-argument

@@ -200,6 +200,27 @@ class NMClient:
         self._run_on_main_loop_thread(activate_connection_async)
         return future
 
+    def stop_connection_async(self, connection: NM.ActiveConnection) -> Future:
+        """Stops a VPN connection asynchronously.
+        :param connection: connection to be stopped.
+        :return: Future to know when the connection has been stopped.
+        """
+        callback, future = self.create_nmcli_callback(
+            finish_method_name="deactivate_connection_finish"
+        )
+
+        def deactivate_connection_async():
+            self._assert_running_on_main_loop_thread()
+            self._nm_client.deactivate_connection_async(
+                connection,
+                None,
+                callback,
+                None
+            )
+
+        self._run_on_main_loop_thread(deactivate_connection_async)
+        return future
+
     def remove_connection_async(
             self, connection: NM.RemoteConnection
     ) -> Future:
