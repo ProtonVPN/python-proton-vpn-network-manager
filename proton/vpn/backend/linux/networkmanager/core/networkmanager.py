@@ -73,6 +73,7 @@ class LinuxNetworkManager(VPNConnection):
                 self.on_event(events.TunnelSetupFailed(
                     context=NM.VpnConnectionStateReason.NONE.real
                 ))
+                self.remove_connection()
                 return
 
             vpn_connection.connect(
@@ -98,6 +99,7 @@ class LinuxNetworkManager(VPNConnection):
         if not connection:
             return
         self.nm_client.remove_connection_async(connection)
+        self._unique_id = None
 
     def remove_persistence(self):
         super().remove_persistence()

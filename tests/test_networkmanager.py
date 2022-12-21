@@ -74,13 +74,13 @@ def test_start_connection_generates_tunnel_setup_failed_event_on_connection_setu
         nm_protocol.start_connection()
 
         nm_protocol._setup.assert_called()
-        nm_protocol.on_event.assert_called()
+        nm_protocol.on_event.assert_called_once()
 
         generated_event = nm_protocol.on_event.call_args[0][0]
         assert isinstance(generated_event, events.TunnelSetupFailed)
 
 
-def test_start_connection_generates_tunnel_setup_failed_event_on_connection_activation_errors(
+def test_start_connection_generates_tunnel_setup_failed_event_on_connection_activation_errors_and_removes_connection(
         nm_protocol, nm_client_mock
 ):
     # Mock successful connection setup.
@@ -94,36 +94,29 @@ def test_start_connection_generates_tunnel_setup_failed_event_on_connection_acti
     start_connection_future.set_exception(GLib.GError)
     nm_client_mock.start_connection_async.return_value = start_connection_future
 
-    with patch.object(nm_protocol, "on_event"):
+    with patch.object(nm_protocol, "on_event"), patch.object(nm_protocol, "remove_connection"):
         nm_protocol.start_connection()
 
         nm_client_mock.start_connection_async.assert_called_once_with(connection)
-        nm_protocol.on_event.assert_called()
+        nm_protocol.on_event.assert_called_once()
 
         generated_event = nm_protocol.on_event.call_args[0][0]
         assert isinstance(generated_event, events.TunnelSetupFailed)
 
+        nm_protocol.remove_connection.assert_called_once()
 
-@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_active_connection")
-def test_stop_connection(_get_nm_active_connection_mock, nm_protocol, nm_client_mock):
-    # mock NM connection
+
+def test_stop_connection(nm_protocol, nm_client_mock):
     connection_mock = Mock()
-    _get_nm_active_connection_mock.return_value = connection_mock
-
-    nm_protocol.stop_connection()
-
+    nm_protocol.stop_connection(connection_mock)
     nm_client_mock.stop_connection_async.assert_called_once_with(connection_mock)
 
 
-@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_connection")
-def test_remove_connection(_get_nm_connection_mock, nm_protocol, nm_client_mock):
-    # mock NM connection
+def test_remove_connection(nm_protocol, nm_client_mock):
     connection_mock = Mock()
-    _get_nm_connection_mock.return_value = connection_mock
-
-    nm_protocol.remove_connection()
-
+    nm_protocol.remove_connection(connection_mock)
     nm_client_mock.remove_connection_async.assert_called_once_with(connection_mock)
+    assert nm_protocol._unique_id is None
 
 
 @pytest.mark.parametrize(
