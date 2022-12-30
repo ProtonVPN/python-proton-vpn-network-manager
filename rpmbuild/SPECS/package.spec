@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.2.2
+%define version 0.2.3
 %define release 1
 
 Prefix: %{_prefix}
@@ -55,6 +55,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Fri Dec 30 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.2.3
+- Remove network manager connection when the VPN connection is stopped
+
 * Wed Dec 21 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.2.2
 - Do not leak NetworkManager connections on connection setup errors
 

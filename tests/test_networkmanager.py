@@ -106,17 +106,19 @@ def test_start_connection_generates_tunnel_setup_failed_event_on_connection_acti
         nm_protocol.remove_connection.assert_called_once()
 
 
-def test_stop_connection(nm_protocol, nm_client_mock):
-    connection_mock = Mock()
-    nm_protocol.stop_connection(connection_mock)
-    nm_client_mock.stop_connection_async.assert_called_once_with(connection_mock)
-
-
 def test_remove_connection(nm_protocol, nm_client_mock):
     connection_mock = Mock()
     nm_protocol.remove_connection(connection_mock)
     nm_client_mock.remove_connection_async.assert_called_once_with(connection_mock)
     assert nm_protocol._unique_id is None
+
+
+def test_stop_connection_removes_connection(nm_protocol):
+    with patch.object(nm_protocol, "remove_connection"):
+        connection = Mock()
+        nm_protocol.stop_connection(connection)
+
+        nm_protocol.remove_connection.assert_called_once_with(connection)
 
 
 @pytest.mark.parametrize(

@@ -68,8 +68,8 @@ class LinuxNetworkManager(VPNConnection):
         ):
             try:
                 vpn_connection = start_connection_future_done.result()
-            except GLib.GError:
-                logger.exception("Error starting NetworkManager connection.")
+            except GLib.GError as exc:
+                logger.warning("Error starting NetworkManager connection: %s", exc)
                 self.on_event(events.TunnelSetupFailed(
                     context=NM.VpnConnectionStateReason.NONE.real
                 ))
@@ -88,10 +88,8 @@ class LinuxNetworkManager(VPNConnection):
 
     def stop_connection(self, connection=None):
         """Stops the VPN connection."""
-        connection = connection or self._get_nm_active_connection()
-        if not connection:
-            return
-        self.nm_client.stop_connection_async(connection)
+        # We directly remove the connection to avoid leaking NM connections.
+        self.remove_connection(connection)
 
     def remove_connection(self, connection=None):
         """Removes the VPN connection."""
