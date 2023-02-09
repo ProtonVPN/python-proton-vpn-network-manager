@@ -68,8 +68,8 @@ class LinuxNetworkManager(VPNConnection):
         ):
             try:
                 vpn_connection = start_connection_future_done.result()
-            except GLib.GError as exc:
-                logger.warning("Error starting NetworkManager connection: %s", exc)
+            except GLib.GError:
+                logger.exception("Error starting NetworkManager connection.")
                 self.on_event(events.TunnelSetupFailed(
                     context=NM.VpnConnectionStateReason.NONE.real
                 ))
