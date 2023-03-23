@@ -2,6 +2,8 @@ from concurrent.futures import Future
 from unittest.mock import Mock, patch
 
 import gi
+from proton.vpn.connection.persistence import ConnectionParameters
+
 gi.require_version("NM", "1.0")  # noqa: required before importing NM module
 from gi.repository import NM, GLib
 
@@ -17,8 +19,12 @@ class LinuxNetworkManagerProtocol(LinuxNetworkManager):
     """Dummy protocol just to unit test the base LinuxNetworkManager class."""
     protocol = "Dummy protocol"
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, connection_persistence=None, killswitch=None, **kwargs):
+        # Make sure we don't trigger connection persistence nor the kill switch.
+        connection_persistence = connection_persistence or Mock()
+        killswitch = killswitch or Mock()
+
+        super().__init__(*args, connection_persistence=connection_persistence, killswitch=killswitch, **kwargs)
 
         # The _setup method is mocked. This method should be the one setting up
         # the NetworkManager connection. Protocols, inheriting from LinuxNetworkManager
@@ -38,7 +44,7 @@ def nm_protocol(nm_client_mock):
     )
 
 
-def test_start_connection(nm_protocol, nm_client_mock):
+def test_start(nm_protocol, nm_client_mock):
     # mock setup connection
     setup_connection_future = Future()
     nm_protocol._setup.return_value = setup_connection_future
@@ -46,7 +52,7 @@ def test_start_connection(nm_protocol, nm_client_mock):
     start_connection_future = Future()
     nm_client_mock.start_connection_async.return_value = start_connection_future
 
-    nm_protocol.start_connection()
+    nm_protocol.start()
 
     nm_protocol._setup.assert_called_once()
 
@@ -62,7 +68,7 @@ def test_start_connection(nm_protocol, nm_client_mock):
     connection_mock.connect.assert_called_once_with("vpn-state-changed", nm_protocol._on_vpn_state_changed)
 
 
-def test_start_connection_generates_tunnel_setup_failed_event_on_connection_setup_errors(
+def test_start_generates_tunnel_setup_failed_event_on_connection_setup_errors(
         nm_protocol, nm_client_mock
 ):
     # Mock error on connection setup.
@@ -70,17 +76,17 @@ def test_start_connection_generates_tunnel_setup_failed_event_on_connection_setu
     setup_connection_future.set_exception(GLib.GError)
     nm_protocol._setup.return_value = setup_connection_future
 
-    with patch.object(nm_protocol, "on_event"):
-        nm_protocol.start_connection()
+    with patch.object(nm_protocol, "_notify_subscribers"):
+        nm_protocol.start()
 
         nm_protocol._setup.assert_called()
-        nm_protocol.on_event.assert_called_once()
+        nm_protocol._notify_subscribers.assert_called_once()
 
-        generated_event = nm_protocol.on_event.call_args[0][0]
+        generated_event = nm_protocol._notify_subscribers.call_args[0][0]
         assert isinstance(generated_event, events.TunnelSetupFailed)
 
 
-def test_start_connection_generates_tunnel_setup_failed_event_on_connection_activation_errors_and_removes_connection(
+def test_start_generates_tunnel_setup_failed_event_on_connection_activation_errors_and_removes_connection(
         nm_protocol, nm_client_mock
 ):
     # Mock successful connection setup.
@@ -94,13 +100,13 @@ def test_start_connection_generates_tunnel_setup_failed_event_on_connection_acti
     start_connection_future.set_exception(GLib.GError)
     nm_client_mock.start_connection_async.return_value = start_connection_future
 
-    with patch.object(nm_protocol, "on_event"), patch.object(nm_protocol, "remove_connection"):
-        nm_protocol.start_connection()
+    with patch.object(nm_protocol, "_notify_subscribers"), patch.object(nm_protocol, "remove_connection"):
+        nm_protocol.start()
 
         nm_client_mock.start_connection_async.assert_called_once_with(connection)
-        nm_protocol.on_event.assert_called_once()
+        nm_protocol._notify_subscribers.assert_called_once()
 
-        generated_event = nm_protocol.on_event.call_args[0][0]
+        generated_event = nm_protocol._notify_subscribers.call_args[0][0]
         assert isinstance(generated_event, events.TunnelSetupFailed)
 
         nm_protocol.remove_connection.assert_called_once()
@@ -116,7 +122,7 @@ def test_remove_connection(nm_protocol, nm_client_mock):
 def test_stop_connection_removes_connection(nm_protocol):
     with patch.object(nm_protocol, "remove_connection"):
         connection = Mock()
-        nm_protocol.stop_connection(connection)
+        nm_protocol.stop(connection)
 
         nm_protocol.remove_connection.assert_called_once_with(connection)
 
@@ -196,13 +202,13 @@ def test_stop_connection_removes_connection(nm_protocol):
         ),
     ]
 )
-@patch("proton.vpn.backend.linux.networkmanager.core.LinuxNetworkManager.on_event")
-def test_on_vpn_state_changed(on_event, nm_protocol, state, reason, expected_event):
+@patch("proton.vpn.backend.linux.networkmanager.core.LinuxNetworkManager._notify_subscribers")
+def test_on_vpn_state_changed(_notify_subscribers, nm_protocol, state, reason, expected_event):
     nm_protocol._on_vpn_state_changed(None, state, reason)
 
-    # assert that the LinuxNetworkManager.on_event method was called with the expected event
-    on_event.assert_called_once()
-    assert isinstance(on_event.call_args.args[0], expected_event)
+    # assert that the LinuxNetworkManager._notify_subscribers method was called with the expected event
+    _notify_subscribers.assert_called_once()
+    assert isinstance(_notify_subscribers.call_args.args[0], expected_event)
 
 
 @pytest.mark.parametrize(
@@ -218,19 +224,26 @@ def test_on_vpn_state_changed(on_event, nm_protocol, state, reason, expected_eve
         ),
     ]
 )
-@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager.update_connection_state")
-@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._get_nm_active_connection")
-@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.LinuxNetworkManager._ensure_unique_id_is_set")
-def test_determine_initial_state(
-        _ensure_unique_id_is_set_mock, _get_nm_active_connection_mock,
-        update_connection_state_mock, nm_protocol, nm_connection, expected_state
+def test_initialize_persisted_connection_determines_initial_connection_state(
+        nm_connection, expected_state
 ):
-    _get_nm_active_connection_mock.return_value = nm_connection
+    persisted_parameters = ConnectionParameters(
+        connection_id="connection-id",
+        backend=LinuxNetworkManagerProtocol.backend,
+        protocol=LinuxNetworkManagerProtocol.protocol,
+        server_id="server-id",
+        server_name="server-name"
+    )
+    nm_client_mock = Mock()
+    nm_client_mock.get_active_connection.return_value = nm_connection
 
-    nm_protocol.determine_initial_state()
+    # The VPNConnection constructor calls `_initialize_persisted_connection`
+    # when `persisted_parameters` are provided.
+    nm_protocol = LinuxNetworkManagerProtocol(
+        server=None,
+        credentials=None,
+        persisted_parameters=persisted_parameters,
+        nm_client=nm_client_mock
+    )
 
-    _ensure_unique_id_is_set_mock.assert_called_once_with()
-    update_connection_state_mock.assert_called_once()
-    assert isinstance(update_connection_state_mock.call_args.args[0], expected_state)
-
-
+    assert isinstance(nm_protocol.initial_state, expected_state)

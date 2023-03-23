@@ -7,6 +7,8 @@ from typing import Optional
 
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
+from proton.vpn.connection.events import EventContext
+from proton.vpn.connection.persistence import ConnectionParameters
 from proton.vpn.connection.vpnconfiguration import VPNConfiguration
 from proton.vpn.connection.states import StateContext
 
@@ -16,14 +18,13 @@ logger = logging.getLogger(__name__)
 
 
 class LinuxNetworkManager(VPNConnection):
-    """Returns VPNConnections based on Linux Network Manager backend.
+    """VPNConnections based on Linux Network Manager backend.
 
-    This is the default backend that will be returned. See docstring for
-    VPNConnection.get_vpnconnection() for further explanation on
-    how priorities work.
+    The LinuxNetworkManager connection backend could return VPNConnection
+    instances based on protocols such as OpenVPN, IKEv2 or Wireguard.
 
-    A LinuxNetworkManager can return a VPNConnection based on protocols
-    such as OpenVPN, IKEv2 or Wireguard.
+    To do this, this class needs to be extended so that the subclass
+    initializes the NetworkManager connection appropriately.
     """
     backend = "linuxnetworkmanager"
 
@@ -45,8 +46,9 @@ class LinuxNetworkManager(VPNConnection):
          for the specified protocol."""
         return Loader.get("nm_protocol", class_name=protocol)
 
-    def start_connection(self):
-        """Starts a VPN connection using NetworkManager."""
+    def start(self):
+        """
+        Starts a VPN connection using NetworkManager."""
         future = self._setup()  # Creates the network manager connection.
         future.add_done_callback(self._start_connection)
 
@@ -56,9 +58,14 @@ class LinuxNetworkManager(VPNConnection):
             connection = connection_setup_future.result()
         except GLib.GError:
             logger.exception("Error adding NetworkManager connection.")
-            self.on_event(events.TunnelSetupFailed(
-                context=NM.VpnConnectionStateReason.NONE.real
-            ))
+            self._notify_subscribers(
+                events.TunnelSetupFailed(
+                    context=EventContext(
+                        connection=self,
+                        error=NM.VpnConnectionStateReason.NONE.real
+                    )
+                )
+            )
             return
 
         start_connection_future = self.nm_client.start_connection_async(connection)
@@ -70,9 +77,14 @@ class LinuxNetworkManager(VPNConnection):
                 vpn_connection = start_connection_future_done.result()
             except GLib.GError:
                 logger.exception("Error starting NetworkManager connection.")
-                self.on_event(events.TunnelSetupFailed(
-                    context=NM.VpnConnectionStateReason.NONE.real
-                ))
+                self._notify_subscribers(
+                    events.TunnelSetupFailed(
+                        context=EventContext(
+                            connection=self,
+                            error=NM.VpnConnectionStateReason.NONE.real
+                        )
+                    )
+                )
                 self.remove_connection()
                 return
 
@@ -86,7 +98,7 @@ class LinuxNetworkManager(VPNConnection):
         # connection is activated, we start listening for vpn state changes.
         start_connection_future.add_done_callback(hook_vpn_state_changed_callback)
 
-    def stop_connection(self, connection=None):
+    def stop(self, connection=None):
         """Stops the VPN connection."""
         # We directly remove the connection to avoid leaking NM connections.
         self.remove_connection(connection)
@@ -136,13 +148,15 @@ class LinuxNetworkManager(VPNConnection):
         )
 
         if state is NM.VpnConnectionState.ACTIVATED:
-            self.on_event(events.Connected())
+            self._notify_subscribers(events.Connected(EventContext(connection=self)))
         elif state is NM.VpnConnectionState.FAILED:
             if reason in [
                 NM.VpnConnectionStateReason.CONNECT_TIMEOUT,
                 NM.VpnConnectionStateReason.SERVICE_START_TIMEOUT
             ]:
-                self.on_event(events.Timeout(reason))
+                self._notify_subscribers(
+                    events.Timeout(EventContext(connection=self, error=reason))
+                )
             elif reason in [
                 NM.VpnConnectionStateReason.NO_SECRETS,
                 NM.VpnConnectionStateReason.LOGIN_FAILED
@@ -151,7 +165,9 @@ class LinuxNetworkManager(VPNConnection):
                 # to introduce the OpenVPN password. If we switch auth to
                 # certificates, we should treat NO_SECRETS as an
                 # UnexpectedDisconnection event.
-                self.on_event(events.AuthDenied(reason))
+                self._notify_subscribers(
+                    events.AuthDenied(EventContext(connection=self, error=reason))
+                )
             else:
                 # reason in [
                 #     NM.VpnConnectionStateReason.UNKNOWN,
@@ -163,12 +179,18 @@ class LinuxNetworkManager(VPNConnection):
                 #     NM.VpnConnectionStateReason.SERVICE_START_FAILED,
                 #     NM.VpnConnectionStateReason.CONNECTION_REMOVED,
                 # ]
-                self.on_event(events.UnexpectedError(reason))
+                self._notify_subscribers(
+                    events.UnexpectedError(EventContext(connection=self, error=reason))
+                )
         elif state == NM.VpnConnectionState.DISCONNECTED:
             if reason in [NM.VpnConnectionStateReason.USER_DISCONNECTED]:
-                self.on_event(events.Disconnected(reason))
+                self._notify_subscribers(
+                    events.Disconnected(EventContext(connection=self, error=reason))
+                )
             elif reason is NM.VpnConnectionStateReason.DEVICE_DISCONNECTED:
-                self.on_event(events.DeviceDisconnected(reason))
+                self._notify_subscribers(
+                    events.DeviceDisconnected(EventContext(connection=self, error=reason))
+                )
             else:
                 # reason in [
                 #     NM.VpnConnectionStateReason.UNKNOWN,
@@ -182,36 +204,46 @@ class LinuxNetworkManager(VPNConnection):
                 #     NM.VpnConnectionStateReason.LOGIN_FAILED,
                 #     NM.VpnConnectionStateReason.CONNECTION_REMOVED,
                 # ]
-                self.on_event(events.UnexpectedError(reason))
+                self._notify_subscribers(
+                    events.UnexpectedError(EventContext(connection=self, error=reason))
+                )
         else:
             logger.debug("Ignoring VPN state change: %s", state.value_name)
 
     @classmethod
-    def _get_connection(cls):
-        all_protocols = Loader.get_all("nm_protocol")
+    def get_persisted_connection(
+            cls, persisted_parameters: ConnectionParameters
+    ) -> Optional[VPNConnection]:
+        """Abstract method implementation."""
+        if persisted_parameters.backend != cls.backend:
+            return None
 
-        for _p in all_protocols:
-            vpnconnection = _p.cls(None, None)
-            if vpnconnection.status.state == states.Connected.state:
-                return vpnconnection
+        all_protocols = Loader.get_all("nm_protocol")
+        for protocol in all_protocols:
+            if protocol.cls.protocol == persisted_parameters.protocol:
+                vpn_connection = protocol.cls(
+                    server=None, credentials=None, persisted_parameters=persisted_parameters
+                )
+                if isinstance(vpn_connection.initial_state, states.Connected):
+                    return vpn_connection
 
         return None
 
-    def determine_initial_state(self) -> "None":
-        """Determines the initial state of the state machine"""
-        self._ensure_unique_id_is_set()
-        active_connection = self._get_nm_active_connection()
+    def _initialize_persisted_connection(
+            self, persisted_parameters: ConnectionParameters
+    ) -> states.State:
+        """Abstract method implementation."""
+        active_connection = self.nm_client.get_active_connection(
+            persisted_parameters.connection_id
+        )
         if active_connection:
-            connected = states.Connected(
-                StateContext(connection=self)
-            )
-            self.update_connection_state(connected)
             active_connection.connect(
                 "vpn-state-changed",
                 self._on_vpn_state_changed
             )
-        else:
-            self.update_connection_state(states.Disconnected())
+            return states.Connected(StateContext(connection=self))
+
+        return states.Disconnected(StateContext(connection=self))
 
     def _get_servername(self) -> "str":
         server_name = self._vpnserver.server_name or "Connection"
@@ -219,9 +251,8 @@ class LinuxNetworkManager(VPNConnection):
 
     def _setup(self):
         """
-            Every protocol derived from this class has to override this method
-            in order to have it working. Look at `_start_connection_in_thread`
-            on how this is used.
+        Every protocol derived from this class has to override this method
+        in order to have it working.
         """
         raise NotImplementedError
 
@@ -269,12 +300,6 @@ class LinuxNetworkManager(VPNConnection):
         connection.normalize()
 
         return connection
-
-    def _get_nm_active_connection(self) -> Optional[NM.ActiveConnection]:
-        """Gets ProtonVPN connection, if there is one and is active."""
-        if not self._unique_id:
-            return None
-        return self.nm_client.get_active_connection(self._unique_id)
 
     def _get_nm_connection(self) -> Optional[NM.RemoteConnection]:
         """Get ProtonVPN connection, if there is one."""
