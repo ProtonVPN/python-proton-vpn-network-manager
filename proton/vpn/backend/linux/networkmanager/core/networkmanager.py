@@ -13,6 +13,7 @@ from proton.vpn.connection.vpnconfiguration import VPNConfiguration
 from proton.vpn.connection.states import StateContext
 
 from proton.vpn.backend.linux.networkmanager.core.nmclient import NM, NMClient, GLib
+from proton.vpn.backend.linux.networkmanager.core import tcpcheck
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +49,28 @@ class LinuxNetworkManager(VPNConnection):
 
     def start(self):
         """
-        Starts a VPN connection using NetworkManager."""
-        future = self._setup()  # Creates the network manager connection.
-        future.add_done_callback(self._start_connection)
+        Starts a VPN connection using NetworkManager.
+        """
+
+        def start_if_server_reachable(server_reachable: bool):
+            if server_reachable:
+                logger.info("VPN server REACHABLE.")
+                future = self._setup()  # Creates the network manager connection.
+                future.add_done_callback(self._start_connection)
+                return
+
+            logger.info("VPN server NOT reachable.")
+            self._notify_subscribers(events.Timeout(EventContext(connection=self)))
+
+        # The VPN connection is started only if at least one of the TCP ports of the server to
+        # connect to is open. The reason for doing this check is that, after introducing the
+        # dummy kill switch network interface, the VPN connection backend tries to use it
+        # to establish the VPN connection.
+        tcpcheck.is_any_port_reachable_async(
+            self._vpnserver.server_ip,
+            self._vpnserver.tcp_ports,
+            callback=start_if_server_reachable
+        )
 
     def _start_connection(self, connection_setup_future: Future):
         # Calling result() will re-raise any exceptions raised during the connection setup.

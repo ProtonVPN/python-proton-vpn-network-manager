@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.2.5
+%define version 0.2.6
 %define release 1
 
 Prefix: %{_prefix}
@@ -55,6 +55,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Fri Apr 14 2023 Josep Llaneras <josep.llaneras@proton.ch> 0.2.6
+- Test network connectivity to the server before starting the VPN connection
+
 * Mon Apr 03 2023 Josep Llaneras <josep.llaneras@proton.ch> 0.2.5
 - Adapt to VPN connection refactoring
 

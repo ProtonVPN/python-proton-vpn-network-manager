@@ -44,8 +44,14 @@ def nm_protocol(nm_client_mock):
     )
 
 
-def test_start(nm_protocol, nm_client_mock):
-    # mock setup connection
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.tcpcheck")
+def test_start(tcpcheck_patch, nm_protocol, nm_client_mock):
+    # Mock successful TCP connection check.
+    def successful_tcp_connection_check(ip, ports, callback, timeout=None):
+        callback(True)
+    tcpcheck_patch.is_any_port_reachable_async.side_effect = successful_tcp_connection_check
+
+    # Mock setup connection.
     setup_connection_future = Future()
     nm_protocol._setup.return_value = setup_connection_future
 
@@ -68,27 +74,60 @@ def test_start(nm_protocol, nm_client_mock):
     connection_mock.connect.assert_called_once_with("vpn-state-changed", nm_protocol._on_vpn_state_changed)
 
 
-def test_start_generates_tunnel_setup_failed_event_on_connection_setup_errors(
-        nm_protocol, nm_client_mock
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.tcpcheck")
+def test_start_generates_timeout_event_when_the_tcp_connection_check_fails(
+        tcpcheck_patch, nm_protocol, nm_client_mock
 ):
+    # Mock failed TCP connection check.
+    def failed_tcp_connection_check(ip, ports, callback, timeout=None):
+        callback(False)
+    tcpcheck_patch.is_any_port_reachable_async.side_effect = failed_tcp_connection_check
+
+    connection_subscriber = Mock()
+    nm_protocol.register(connection_subscriber)
+    nm_protocol.start()
+
+    nm_protocol._setup.assert_not_called()
+    connection_subscriber.assert_called_once()
+
+    generated_event = connection_subscriber.call_args.kwargs["event"]
+    assert isinstance(generated_event, events.Timeout)
+
+
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.tcpcheck")
+def test_start_generates_tunnel_setup_failed_event_on_connection_setup_errors(
+        tcpcheck_patch, nm_protocol, nm_client_mock
+):
+    # Mock successful TCP connection check.
+    def successful_tcp_connection_check(ip, ports, callback, timeout=None):
+        callback(True)
+    tcpcheck_patch.is_any_port_reachable_async.side_effect = successful_tcp_connection_check
+
     # Mock error on connection setup.
     setup_connection_future = Future()
     setup_connection_future.set_exception(GLib.GError)
     nm_protocol._setup.return_value = setup_connection_future
 
-    with patch.object(nm_protocol, "_notify_subscribers"):
-        nm_protocol.start()
+    connection_subscriber = Mock()
+    nm_protocol.register(connection_subscriber)
+    nm_protocol.start()
 
-        nm_protocol._setup.assert_called()
-        nm_protocol._notify_subscribers.assert_called_once()
+    nm_protocol._setup.assert_called()
+    connection_subscriber.assert_called_once()
 
-        generated_event = nm_protocol._notify_subscribers.call_args[0][0]
-        assert isinstance(generated_event, events.TunnelSetupFailed)
+    generated_event = connection_subscriber.call_args.kwargs["event"]
+    assert isinstance(generated_event, events.TunnelSetupFailed)
 
 
+@patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.tcpcheck")
 def test_start_generates_tunnel_setup_failed_event_on_connection_activation_errors_and_removes_connection(
-        nm_protocol, nm_client_mock
+        tcpcheck_patch, nm_protocol, nm_client_mock
 ):
+    # Mock successful TCP connection check.
+    def successful_tcp_connection_check(ip, ports, callback, timeout=None):
+        callback(True)
+    tcpcheck_patch.is_any_port_reachable_async.side_effect = successful_tcp_connection_check
+
     # Mock successful connection setup.
     connection = Mock()
     setup_connection_future = Future()
@@ -100,13 +139,15 @@ def test_start_generates_tunnel_setup_failed_event_on_connection_activation_erro
     start_connection_future.set_exception(GLib.GError)
     nm_client_mock.start_connection_async.return_value = start_connection_future
 
-    with patch.object(nm_protocol, "_notify_subscribers"), patch.object(nm_protocol, "remove_connection"):
+    connection_subscriber = Mock()
+    nm_protocol.register(connection_subscriber)
+    with patch.object(nm_protocol, "remove_connection"):
         nm_protocol.start()
 
         nm_client_mock.start_connection_async.assert_called_once_with(connection)
-        nm_protocol._notify_subscribers.assert_called_once()
+        connection_subscriber.assert_called_once()
 
-        generated_event = nm_protocol._notify_subscribers.call_args[0][0]
+        generated_event = connection_subscriber.call_args.kwargs["event"]
         assert isinstance(generated_event, events.TunnelSetupFailed)
 
         nm_protocol.remove_connection.assert_called_once()
