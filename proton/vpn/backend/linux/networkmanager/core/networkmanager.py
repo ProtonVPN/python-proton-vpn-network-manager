@@ -63,7 +63,7 @@ class LinuxNetworkManager(VPNConnection):
     def factory(cls, protocol: str = None):
         """Returns the VPN connection implementation class
          for the specified protocol."""
-        return Loader.get("nm_protocol", class_name=protocol)
+        return Loader.get(LinuxNetworkManager.backend, class_name=protocol)
 
     def start(self):
         """
@@ -256,7 +256,7 @@ class LinuxNetworkManager(VPNConnection):
         if persisted_parameters.backend != cls.backend:
             return None
 
-        all_protocols = Loader.get_all("nm_protocol")
+        all_protocols = Loader.get_all(LinuxNetworkManager.backend)
         for protocol in all_protocols:
             if protocol.cls.protocol == persisted_parameters.protocol:
                 vpn_connection = protocol.cls(
