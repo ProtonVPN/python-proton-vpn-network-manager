@@ -288,6 +288,7 @@ def test_initialize_persisted_connection_determines_initial_connection_state(
 ):
     persisted_parameters = ConnectionParameters(
         connection_id="connection-id",
+        killswitch=0,
         backend=LinuxNetworkManagerProtocol.backend,
         protocol=LinuxNetworkManagerProtocol.protocol,
         server_id="server-id",

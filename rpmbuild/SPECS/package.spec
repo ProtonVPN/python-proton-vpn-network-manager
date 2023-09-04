@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.2.7
+%define version 0.3.0
 %define release 1
 
 Prefix: %{_prefix}
@@ -55,6 +55,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Mon Sep 04 2023 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.3.0
+- Add time delay before making tcpcheck call, due to kill switch, to ensure that server is reacheable 
+
 * Wed Jul 05 2023 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.2.7
 - Update Loader.get_all() argument for getting NetworkManager protocols
 

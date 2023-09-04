@@ -1,6 +1,7 @@
 """
 Utility module to do TCP connection checks.
 """
+import time
 import ipaddress
 import logging
 import socket
@@ -82,6 +83,12 @@ def is_any_port_reachable_async(
     an argument: True if the one of the ports was reachable or False otherwise.
     """
     def _check_connectivity():
+        # FIX-ME: Since we're adding kill switch connections, it sometimes it
+        # takes some milliseconds until they're enabled after they have been added,
+        # thus we need to introduce an artificial delay to ensure that the kill
+        # switch connection have been added and connected, and only then
+        # we should attempt to do a tcp check.
+        time.sleep(2)
         callback(is_any_port_reachable(ip_address, ports, timeout))
 
     Thread(target=_check_connectivity, daemon=True).start()
