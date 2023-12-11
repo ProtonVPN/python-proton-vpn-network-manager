@@ -1,14 +1,13 @@
 """
 Utility module to do TCP connection checks.
 """
-import time
+import asyncio
 import ipaddress
 import logging
 import socket
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from asyncio import as_completed
 from contextlib import closing
-from threading import Thread
-from typing import Callable, List, Union
+from typing import List, Union
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,7 @@ def is_port_reachable(
         return socket_result == 0
 
 
-def is_any_port_reachable(
+async def is_any_port_reachable(
         ip_address: str, ports: List[str], timeout: int = DEFAULT_TIMEOUT
 ) -> bool:
     """
@@ -66,29 +65,19 @@ def is_any_port_reachable(
     :returns: True if a socket could be opened to the specified address/ports,
         or False otherwise.
     """
-    with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(is_port_reachable, ip_address, port, timeout) for port in ports]
-        for future in as_completed(futures):
-            if not future.exception() and future.result():
-                return True
+    loop = asyncio.get_running_loop()
 
-    return False
+    async def _is_port_reachable(port):
+        return await loop.run_in_executor(None, is_port_reachable, ip_address, port, timeout)
 
-
-def is_any_port_reachable_async(
-        ip_address: str, ports: List[str], callback: Callable, timeout: int = DEFAULT_TIMEOUT
-) -> None:
-    """
-    Asynchronous version of `is_any_port_reachable`. The specified `callback` is called with
-    an argument: True if the one of the ports was reachable or False otherwise.
-    """
-    def _check_connectivity():
-        # FIX-ME: Since we're adding kill switch connections, it sometimes it
-        # takes some milliseconds until they're enabled after they have been added,
-        # thus we need to introduce an artificial delay to ensure that the kill
-        # switch connection have been added and connected, and only then
-        # we should attempt to do a tcp check.
-        time.sleep(2)
-        callback(is_any_port_reachable(ip_address, ports, timeout))
-
-    Thread(target=_check_connectivity, daemon=True).start()
+    # FIXME: get rid of this sleep. # pylint: disable=fixme
+    await asyncio.sleep(2)
+    tasks = [
+        asyncio.create_task(_is_port_reachable(port))
+        for port in ports
+    ]
+    for task in as_completed(tasks):
+        try:
+            return await task
+        except Exception:  # pylint: disable=broad-except
+            return False

@@ -19,13 +19,13 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
+import asyncio
 import logging
-from concurrent.futures import Future
 from typing import Optional
 
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
-from proton.vpn.connection.events import EventContext
+from proton.vpn.connection.events import EventContext, Event
 from proton.vpn.connection.persistence import ConnectionParameters
 from proton.vpn.connection.vpnconfiguration import VPNConfiguration
 from proton.vpn.connection.states import StateContext
@@ -49,6 +49,9 @@ class LinuxNetworkManager(VPNConnection):
 
     def __init__(self, *args, nm_client: NMClient = None, **kwargs):
         self.__nm_client = nm_client
+        self._asyncio_loop = asyncio.get_running_loop()
+        self._pending_futures = set()
+        self._cancelled = False
         super().__init__(*args, **kwargs)
 
     @property
@@ -65,38 +68,39 @@ class LinuxNetworkManager(VPNConnection):
          for the specified protocol."""
         return Loader.get(LinuxNetworkManager.backend, class_name=protocol)
 
-    def start(self):
+    async def start(self):
         """
         Starts a VPN connection using NetworkManager.
         """
-
-        def start_if_server_reachable(server_reachable: bool):
-            if server_reachable:
-                logger.info("VPN server REACHABLE.")
-                future = self._setup()  # Creates the network manager connection.
-                future.add_done_callback(self._start_connection)
-                return
-
-            logger.info("VPN server NOT reachable.")
-            self._notify_subscribers(events.Timeout(EventContext(connection=self)))
-
         # The VPN connection is started only if at least one of the TCP ports of the server to
         # connect to is open. The reason for doing this check is that, after introducing the
         # dummy kill switch network interface, the VPN connection backend tries to use it
         # to establish the VPN connection.
-        tcpcheck.is_any_port_reachable_async(
+        self._cancelled = False
+
+        server_reachable = await tcpcheck.is_any_port_reachable(
             self._vpnserver.server_ip,
-            self._vpnserver.tcp_ports,
-            callback=start_if_server_reachable
+            self._vpnserver.tcp_ports
         )
 
-    def _start_connection(self, connection_setup_future: Future):
-        # Calling result() will re-raise any exceptions raised during the connection setup.
+        if not server_reachable:
+            logger.info("VPN server NOT reachable.")
+            await self._notify_subscribers(events.Timeout(EventContext(connection=self)))
+            return
+
+        logger.info("VPN server REACHABLE.")
+
+        if self._cancelled:
+            logger.info("Connection cancelled.")
+            return
+
+        future_connection = self._setup()  # Creates the network manager connection.
+        loop = asyncio.get_running_loop()
         try:
-            connection = connection_setup_future.result()
+            connection = await loop.run_in_executor(None, future_connection.result)
         except GLib.GError:
             logger.exception("Error adding NetworkManager connection.")
-            self._notify_subscribers(
+            await self._notify_subscribers(
                 events.TunnelSetupFailed(
                     context=EventContext(
                         connection=self,
@@ -106,40 +110,39 @@ class LinuxNetworkManager(VPNConnection):
             )
             return
 
-        start_connection_future = self.nm_client.start_connection_async(connection)
-
-        def hook_vpn_state_changed_callback(
-                start_connection_future_done: Future
-        ):
-            try:
-                vpn_connection = start_connection_future_done.result()
-            except GLib.GError:
-                logger.exception("Error starting NetworkManager connection.")
-                self._notify_subscribers(
-                    events.TunnelSetupFailed(
-                        context=EventContext(
-                            connection=self,
-                            error=NM.VpnConnectionStateReason.NONE.real
-                        )
-                    )
-                )
-                self.remove_connection()
-                return
-
+        try:
+            future_vpn_connection = self.nm_client.start_connection_async(connection)
+            vpn_connection = await loop.run_in_executor(
+                None, future_vpn_connection.result
+            )
+            # Start listening for vpn state changes.
             vpn_connection.connect(
                 "vpn-state-changed",
                 self._on_vpn_state_changed
             )
+        except GLib.GError:
+            logger.exception("Error starting NetworkManager connection.")
+            await self._notify_subscribers(
+                events.TunnelSetupFailed(
+                    context=EventContext(
+                        connection=self,
+                        error=NM.VpnConnectionStateReason.NONE.real
+                    )
+                )
+            )
+            self.remove_connection()
 
-        # start_connection_future is done as soon as the VPN connection
-        # is activated, but before it's established. As soon as the
-        # connection is activated, we start listening for vpn state changes.
-        start_connection_future.add_done_callback(hook_vpn_state_changed_callback)
-
-    def stop(self, connection=None):
+    async def stop(self, connection=None):
         """Stops the VPN connection."""
         # We directly remove the connection to avoid leaking NM connections.
-        self.remove_connection(connection)
+        connection = connection or self._get_nm_connection()
+        if not connection:
+            # It can happen that a connection is started, and then it's
+            # stopped before the underlying NM connection was created.
+            self._cancelled = True
+            await self._notify_subscribers(events.Disconnected(EventContext(connection=self)))
+        else:
+            self.remove_connection(connection)
 
     def remove_connection(self, connection=None):
         """Removes the VPN connection."""
@@ -149,8 +152,8 @@ class LinuxNetworkManager(VPNConnection):
         self.nm_client.remove_connection_async(connection)
         self._unique_id = None
 
-    def remove_persistence(self):
-        super().remove_persistence()
+    async def remove_persistence(self):
+        await super().remove_persistence()
         self.remove_connection()
 
     # pylint: disable=unused-argument
@@ -162,6 +165,10 @@ class LinuxNetworkManager(VPNConnection):
             reason for the change. This callback will receive these updates
             and translate for them accordingly for the state machine,
             as the state machine is backend agnostic.
+
+            Note this method is called from the thread running the GLib main loop.
+            Interactions between code in this method and the asyncio loop must
+            be done in a thread-safe manner.
 
             :param state: connection state update
             :type state: int
@@ -186,13 +193,15 @@ class LinuxNetworkManager(VPNConnection):
         )
 
         if state is NM.VpnConnectionState.ACTIVATED:
-            self._notify_subscribers(events.Connected(EventContext(connection=self)))
+            self._notify_subscribers_threadsafe(
+                events.Connected(EventContext(connection=self))
+            )
         elif state is NM.VpnConnectionState.FAILED:
             if reason in [
                 NM.VpnConnectionStateReason.CONNECT_TIMEOUT,
                 NM.VpnConnectionStateReason.SERVICE_START_TIMEOUT
             ]:
-                self._notify_subscribers(
+                self._notify_subscribers_threadsafe(
                     events.Timeout(EventContext(connection=self, error=reason))
                 )
             elif reason in [
@@ -203,7 +212,7 @@ class LinuxNetworkManager(VPNConnection):
                 # to introduce the OpenVPN password. If we switch auth to
                 # certificates, we should treat NO_SECRETS as an
                 # UnexpectedDisconnection event.
-                self._notify_subscribers(
+                self._notify_subscribers_threadsafe(
                     events.AuthDenied(EventContext(connection=self, error=reason))
                 )
             else:
@@ -217,16 +226,16 @@ class LinuxNetworkManager(VPNConnection):
                 #     NM.VpnConnectionStateReason.SERVICE_START_FAILED,
                 #     NM.VpnConnectionStateReason.CONNECTION_REMOVED,
                 # ]
-                self._notify_subscribers(
+                self._notify_subscribers_threadsafe(
                     events.UnexpectedError(EventContext(connection=self, error=reason))
                 )
         elif state == NM.VpnConnectionState.DISCONNECTED:
             if reason in [NM.VpnConnectionStateReason.USER_DISCONNECTED]:
-                self._notify_subscribers(
+                self._notify_subscribers_threadsafe(
                     events.Disconnected(EventContext(connection=self, error=reason))
                 )
             elif reason is NM.VpnConnectionStateReason.DEVICE_DISCONNECTED:
-                self._notify_subscribers(
+                self._notify_subscribers_threadsafe(
                     events.DeviceDisconnected(EventContext(connection=self, error=reason))
                 )
             else:
@@ -242,11 +251,22 @@ class LinuxNetworkManager(VPNConnection):
                 #     NM.VpnConnectionStateReason.LOGIN_FAILED,
                 #     NM.VpnConnectionStateReason.CONNECTION_REMOVED,
                 # ]
-                self._notify_subscribers(
+                self._notify_subscribers_threadsafe(
                     events.UnexpectedError(EventContext(connection=self, error=reason))
                 )
         else:
             logger.debug("Ignoring VPN state change: %s", state.value_name)
+
+    def _notify_subscribers_threadsafe(self, event: Event):
+        """
+        When notifying subscribers from different thread than then one running the
+        asyncio loop, this method must be used for thread-safety reasons.
+        """
+        future = asyncio.run_coroutine_threadsafe(
+            self._notify_subscribers(event), self._asyncio_loop
+        )
+        self._pending_futures.add(future)
+        future.add_done_callback(self._pending_futures.discard)
 
     @classmethod
     def get_persisted_connection(

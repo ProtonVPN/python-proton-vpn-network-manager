@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.3.0
+%define version 0.3.1
 %define release 1
 
 Prefix: %{_prefix}
@@ -55,6 +55,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Wed Dec 13 2023 Josep Llaneras <josep.llaneras@proton.ch> 0.3.1
+- Fix state machine getting stuck in disconnecting state.
+
 * Mon Sep 04 2023 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.3.0
 - Add time delay before making tcpcheck call, due to kill switch, to ensure that server is reacheable 
 
