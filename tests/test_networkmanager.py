@@ -177,7 +177,7 @@ async def test_start_generates_tunnel_setup_failed_event_on_connection_activatio
 async def test_remove_connection(nm_client_mock):
     nm_protocol = create_nm_protocol(nm_client_mock)
     connection_mock = Mock()
-    nm_protocol.remove_connection(connection_mock)
+    await nm_protocol.remove_connection(connection_mock)
     nm_client_mock.remove_connection_async.assert_called_once_with(connection_mock)
     assert nm_protocol._unique_id is None
 

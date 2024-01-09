@@ -92,6 +92,7 @@ class LinuxNetworkManager(VPNConnection):
 
         if self._cancelled:
             logger.info("Connection cancelled.")
+            await self._notify_subscribers(events.Disconnected(EventContext(connection=self)))
             return
 
         future_connection = self._setup()  # Creates the network manager connection.
@@ -108,6 +109,12 @@ class LinuxNetworkManager(VPNConnection):
                     )
                 )
             )
+            return
+
+        if self._cancelled:
+            logger.info("Connection cancelled.")
+            await self.remove_connection(connection)
+            await self._notify_subscribers(events.Disconnected(EventContext(connection=self)))
             return
 
         try:
@@ -130,7 +137,7 @@ class LinuxNetworkManager(VPNConnection):
                     )
                 )
             )
-            self.remove_connection()
+            await self.remove_connection(connection)
 
     async def stop(self, connection=None):
         """Stops the VPN connection."""
@@ -140,21 +147,24 @@ class LinuxNetworkManager(VPNConnection):
             # It can happen that a connection is started, and then it's
             # stopped before the underlying NM connection was created.
             self._cancelled = True
-            await self._notify_subscribers(events.Disconnected(EventContext(connection=self)))
         else:
-            self.remove_connection(connection)
+            await self.remove_connection(connection)
 
-    def remove_connection(self, connection=None):
+    async def remove_connection(self, connection=None):
         """Removes the VPN connection."""
         connection = connection or self._get_nm_connection()
         if not connection:
             return
-        self.nm_client.remove_connection_async(connection)
+
+        future = self.nm_client.remove_connection_async(connection)
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, future.result)
+
         self._unique_id = None
 
     async def remove_persistence(self):
         await super().remove_persistence()
-        self.remove_connection()
+        await self.remove_connection()
 
     # pylint: disable=unused-argument
     def _on_vpn_state_changed(
