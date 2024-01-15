@@ -50,7 +50,6 @@ class LinuxNetworkManager(VPNConnection):
     def __init__(self, *args, nm_client: NMClient = None, **kwargs):
         self.__nm_client = nm_client
         self._asyncio_loop = asyncio.get_running_loop()
-        self._pending_futures = set()
         self._cancelled = False
         super().__init__(*args, **kwargs)
 
@@ -85,14 +84,14 @@ class LinuxNetworkManager(VPNConnection):
 
         if not server_reachable:
             logger.info("VPN server NOT reachable.")
-            await self._notify_subscribers(events.Timeout(EventContext(connection=self)))
+            self._notify_subscribers(events.Timeout(EventContext(connection=self)))
             return
 
         logger.info("VPN server REACHABLE.")
 
         if self._cancelled:
             logger.info("Connection cancelled.")
-            await self._notify_subscribers(events.Disconnected(EventContext(connection=self)))
+            self._notify_subscribers(events.Disconnected(EventContext(connection=self)))
             return
 
         future_connection = self._setup()  # Creates the network manager connection.
@@ -101,7 +100,7 @@ class LinuxNetworkManager(VPNConnection):
             connection = await loop.run_in_executor(None, future_connection.result)
         except GLib.GError:
             logger.exception("Error adding NetworkManager connection.")
-            await self._notify_subscribers(
+            self._notify_subscribers(
                 events.TunnelSetupFailed(
                     context=EventContext(
                         connection=self,
@@ -114,7 +113,7 @@ class LinuxNetworkManager(VPNConnection):
         if self._cancelled:
             logger.info("Connection cancelled.")
             await self.remove_connection(connection)
-            await self._notify_subscribers(events.Disconnected(EventContext(connection=self)))
+            self._notify_subscribers(events.Disconnected(EventContext(connection=self)))
             return
 
         try:
@@ -129,7 +128,7 @@ class LinuxNetworkManager(VPNConnection):
             )
         except GLib.GError:
             logger.exception("Error starting NetworkManager connection.")
-            await self._notify_subscribers(
+            self._notify_subscribers(
                 events.TunnelSetupFailed(
                     context=EventContext(
                         connection=self,
@@ -272,11 +271,9 @@ class LinuxNetworkManager(VPNConnection):
         When notifying subscribers from different thread than then one running the
         asyncio loop, this method must be used for thread-safety reasons.
         """
-        future = asyncio.run_coroutine_threadsafe(
-            self._notify_subscribers(event), self._asyncio_loop
+        self._asyncio_loop.call_soon_threadsafe(
+            self._notify_subscribers, event
         )
-        self._pending_futures.add(future)
-        future.add_done_callback(self._pending_futures.discard)
 
     @classmethod
     def get_persisted_connection(
