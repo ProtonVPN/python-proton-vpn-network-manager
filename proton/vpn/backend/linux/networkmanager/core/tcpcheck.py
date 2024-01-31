@@ -70,8 +70,6 @@ async def is_any_port_reachable(
     async def _is_port_reachable(port):
         return await loop.run_in_executor(None, is_port_reachable, ip_address, port, timeout)
 
-    # FIXME: get rid of this sleep. # pylint: disable=fixme
-    await asyncio.sleep(2)
     tasks = [
         asyncio.create_task(_is_port_reachable(port))
         for port in ports

@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.3.4
+%define version 0.3.5
 %define release 1
 
 Prefix: %{_prefix}
@@ -55,6 +55,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Wed Jan 31 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.3.5
+- Remove connection delay
+
 * Wed Jan 31 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.3.4
 - Initialize state machine in Error state when inactive VPN connection is found
 
