@@ -286,8 +286,8 @@ class LinuxNetworkManager(VPNConnection):
         all_protocols = Loader.get_all(LinuxNetworkManager.backend)
         for protocol in all_protocols:
             if protocol.cls.protocol == persisted_parameters.protocol:
-                vpn_connection = protocol.cls(
-                    server=None, credentials=None, persisted_parameters=persisted_parameters
+                vpn_connection = protocol.cls.from_persistence(
+                    persisted_parameters
                 )
                 if not isinstance(vpn_connection.initial_state, states.Disconnected):
                     return vpn_connection
@@ -295,7 +295,7 @@ class LinuxNetworkManager(VPNConnection):
         return None
 
     def _initialize_persisted_connection(
-            self, persisted_parameters: ConnectionParameters
+            self, connection_id: str
     ) -> states.State:
         """Abstract method implementation."""
         context = StateContext(
@@ -303,7 +303,7 @@ class LinuxNetworkManager(VPNConnection):
             connection=self
         )
         active_connection = self.nm_client.get_active_connection(
-            persisted_parameters.connection_id
+            connection_id
         )
         if active_connection:
             active_connection.connect(
@@ -312,7 +312,7 @@ class LinuxNetworkManager(VPNConnection):
             )
             return states.Connected(context)
 
-        inactive_connection = self.nm_client.get_connection(persisted_parameters.connection_id)
+        inactive_connection = self.nm_client.get_connection(connection_id)
         if inactive_connection:
             # If the connection is inactive then it means that it unexpectedly dropped.
             # Note that when the user willingly disconnects then the VPN connection is discarded.
