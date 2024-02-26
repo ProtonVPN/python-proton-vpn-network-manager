@@ -45,6 +45,7 @@ class LinuxNetworkManager(VPNConnection):
     To do this, this class needs to be extended so that the subclass
     initializes the NetworkManager connection appropriately.
     """
+    SIGNAL_NAME = "vpn-state-changed"
     backend = "linuxnetworkmanager"
 
     def __init__(self, *args, nm_client: NMClient = None, **kwargs):
@@ -94,7 +95,7 @@ class LinuxNetworkManager(VPNConnection):
             self._notify_subscribers(events.Disconnected(EventContext(connection=self)))
             return
 
-        future_connection = self._setup()  # Creates the network manager connection.
+        future_connection = self.setup()  # Creates the network manager connection.
         loop = asyncio.get_running_loop()
         try:
             connection = await loop.run_in_executor(None, future_connection.result)
@@ -123,8 +124,8 @@ class LinuxNetworkManager(VPNConnection):
             )
             # Start listening for vpn state changes.
             vpn_connection.connect(
-                "vpn-state-changed",
-                self._on_vpn_state_changed
+                self.SIGNAL_NAME,
+                self._on_state_changed
             )
         except GLib.GError:
             logger.exception("Error starting NetworkManager connection.")
@@ -166,7 +167,7 @@ class LinuxNetworkManager(VPNConnection):
         await self.remove_connection()
 
     # pylint: disable=unused-argument
-    def _on_vpn_state_changed(
+    def _on_state_changed(
             self, vpn_connection: NM.VpnConnection, state: int, reason: int
     ):
         """
@@ -307,8 +308,8 @@ class LinuxNetworkManager(VPNConnection):
         )
         if active_connection:
             active_connection.connect(
-                "vpn-state-changed",
-                self._on_vpn_state_changed
+                self.SIGNAL_NAME,
+                self._on_state_changed
             )
             return states.Connected(context)
 
@@ -324,7 +325,7 @@ class LinuxNetworkManager(VPNConnection):
         server_name = self._vpnserver.server_name or "Connection"
         return f"ProtonVPN {server_name}"
 
-    def _setup(self):
+    def setup(self):
         """
         Every protocol derived from this class has to override this method
         in order to have it working.

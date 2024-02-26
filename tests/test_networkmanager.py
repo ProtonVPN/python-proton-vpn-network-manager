@@ -44,7 +44,7 @@ class LinuxNetworkManagerProtocol(LinuxNetworkManager):
 
         super().__init__(*args, connection_persistence=connection_persistence, killswitch=killswitch, **kwargs)
 
-    def _setup(self):
+    def setup(self):
         # to be mocked in tests
         pass
 
@@ -68,7 +68,7 @@ async def test_start(tcpcheck_patch, nm_client_mock):
 
     nm_protocol = create_nm_protocol(nm_client_mock)
 
-    with patch.object(nm_protocol, "_setup") as setup_mock:
+    with patch.object(nm_protocol, "setup") as setup_mock:
         start_connection_future = Future()
         nm_client_mock.start_connection_async.return_value = start_connection_future
         connection_mock = setup_mock.return_value.result()
@@ -84,7 +84,7 @@ async def test_start(tcpcheck_patch, nm_client_mock):
     # is hooked to monitor vpn connection state changes.
     connection_mock.connect.assert_called_once_with(
         "vpn-state-changed",
-        nm_protocol._on_vpn_state_changed
+        nm_protocol._on_state_changed
     )
 
 
@@ -99,7 +99,7 @@ async def test_start_generates_timeout_event_when_the_tcp_connection_check_fails
     connection_subscriber = Mock()
     nm_protocol = create_nm_protocol(nm_client_mock)
     nm_protocol.register(connection_subscriber)
-    with patch.object(nm_protocol, "_setup") as setup_mock:
+    with patch.object(nm_protocol, "setup") as setup_mock:
         await nm_protocol.start()
 
         setup_mock.assert_not_called()
@@ -120,7 +120,7 @@ async def test_start_generates_tunnel_setup_failed_event_on_connection_setup_err
     # Mock successful TCP connection check.
     tcpcheck_patch.is_any_port_reachable = AsyncMock(return_value=True)
 
-    with patch.object(nm_protocol, "_setup") as setup_mock:
+    with patch.object(nm_protocol, "setup") as setup_mock:
         # Mock error on connection setup.
         setup_connection_future = Future()
         setup_connection_future.set_exception(GLib.GError)
@@ -148,12 +148,12 @@ async def test_start_generates_tunnel_setup_failed_event_on_connection_activatio
     # Mock successful TCP connection check.
     tcpcheck_patch.is_any_port_reachable = AsyncMock(return_value=True)
 
-    with patch.multiple(nm_protocol, _setup=DEFAULT, remove_connection=DEFAULT) as mocks:
+    with patch.multiple(nm_protocol, setup=DEFAULT, remove_connection=DEFAULT) as mocks:
         # Mock successful connection setup.
         connection = Mock()
         setup_connection_future = Future()
         setup_connection_future.set_result(connection)
-        mocks["_setup"].return_value = setup_connection_future
+        mocks["setup"].return_value = setup_connection_future
 
         # Mock error on connection activation.
         start_connection_future = Future()
@@ -269,10 +269,10 @@ async def test_stop_connection_removes_connection(nm_client_mock):
     ]
 )
 @patch("proton.vpn.backend.linux.networkmanager.core.LinuxNetworkManager._notify_subscribers_threadsafe")
-async def test_on_vpn_state_changed(_notify_subscribers_threadsafe, nm_client_mock, state, reason, expected_event):
+async def test_on_state_changed(_notify_subscribers_threadsafe, nm_client_mock, state, reason, expected_event):
     _notify_subscribers_threadsafe.return_value = None
     nm_protocol = create_nm_protocol(nm_client_mock)
-    nm_protocol._on_vpn_state_changed(None, state, reason)
+    nm_protocol._on_state_changed(None, state, reason)
 
     # assert that the LinuxNetworkManager._notify_subscribers method was called with the expected event
     _notify_subscribers_threadsafe.assert_called_once()

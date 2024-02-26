@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.4.0
+%define version 0.4.1
 %define release 1
 
 Prefix: %{_prefix}
@@ -33,6 +33,9 @@ Requires: gobject-introspection
 Requires: python3-proton-core
 Requires: python3-setuptools
 
+Conflicts: python3-proton-vpn-network-manager-openvpn < 0.0.5
+Conflicts: python3-proton-vpn-network-manager-wireguard < 0.0.3
+
 %{?python_disable_dependency_generator}
 
 %description
@@ -55,6 +58,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Tue Feb 27 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.4.1
+- Make necessary changes to support Wireguard protocol
+
 * Wed Feb 14 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.4.0
 - Initialize connection with persisted parameters
 
