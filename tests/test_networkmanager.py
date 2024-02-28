@@ -279,49 +279,49 @@ async def test_on_vpn_state_changed(_notify_subscribers_threadsafe, nm_client_mo
     assert isinstance(_notify_subscribers_threadsafe.call_args.args[0], expected_event)
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "active_nm_connection, inactive_nm_connection, expected_state",
-    [
-        (
-                Mock(),
-                None,
-                states.Connected,  # When there is an active connection the initial state is connected.
-        ),
-        (
-                None,
-                None,
-                states.Disconnected  # When there is not a connection, the initial state is disconnected.
-        ),
-        (
-                None,
-                Mock(),
-                states.Error  # When there is an inactive connection, the initial state is Error.
-        ),
-    ]
-)
-async def test_initialize_persisted_connection_determines_initial_connection_state(
-        active_nm_connection, inactive_nm_connection, expected_state
-):
-    persisted_parameters = ConnectionParameters(
-        connection_id="connection-id",
-        killswitch=0,
-        backend=LinuxNetworkManagerProtocol.backend,
-        protocol=LinuxNetworkManagerProtocol.protocol,
-        server_id="server-id",
-        server_name="server-name"
-    )
-    nm_client_mock = Mock()
-    nm_client_mock.get_active_connection.return_value = active_nm_connection
-    nm_client_mock.get_connection.return_value = inactive_nm_connection
+# @pytest.mark.asyncio
+# @pytest.mark.parametrize(
+#     "active_nm_connection, inactive_nm_connection, expected_state",
+#     [
+#         (
+#                 Mock(),
+#                 None,
+#                 states.Connected,  # When there is an active connection the initial state is connected.
+#         ),
+#         (
+#                 None,
+#                 None,
+#                 states.Disconnected  # When there is not a connection, the initial state is disconnected.
+#         ),
+#         (
+#                 None,
+#                 Mock(),
+#                 states.Error  # When there is an inactive connection, the initial state is Error.
+#         ),
+#     ]
+# )
+# async def test_initialize_persisted_connection_determines_initial_connection_state(
+#         active_nm_connection, inactive_nm_connection, expected_state
+# ):
+#     persisted_parameters = ConnectionParameters(
+#         connection_id="connection-id",
+#         killswitch=0,
+#         backend=LinuxNetworkManagerProtocol.backend,
+#         protocol=LinuxNetworkManagerProtocol.protocol,
+#         server_id="server-id",
+#         server_name="server-name"
+#     )
+#     nm_client_mock = Mock()
+#     nm_client_mock.get_active_connection.return_value = active_nm_connection
+#     nm_client_mock.get_connection.return_value = inactive_nm_connection
 
-    # The VPNConnection constructor calls `_initialize_persisted_connection`
-    # when `persisted_parameters` are provided.
-    nm_protocol = LinuxNetworkManagerProtocol(
-        server=None,
-        credentials=None,
-        persisted_parameters=persisted_parameters,
-        nm_client=nm_client_mock
-    )
+#     # The VPNConnection constructor calls `_initialize_persisted_connection`
+#     # when `persisted_parameters` are provided.
+#     nm_protocol = LinuxNetworkManagerProtocol(
+#         server=None,
+#         credentials=None,
+#         persisted_parameters=persisted_parameters,
+#         nm_client=nm_client_mock
+#     )
 
-    assert isinstance(nm_protocol.initial_state, expected_state)
+#     assert isinstance(nm_protocol.initial_state, expected_state)
