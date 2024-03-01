@@ -80,7 +80,7 @@ class LinuxNetworkManager(VPNConnection):
 
         server_reachable = await tcpcheck.is_any_port_reachable(
             self._vpnserver.server_ip,
-            self._vpnserver.tcp_ports
+            self._vpnserver.openvpn_ports.tcp
         )
 
         if not server_reachable:

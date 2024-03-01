@@ -23,9 +23,9 @@ from typing import List
 @dataclass
 class VPNServer:
     server_ip: str = None
-    udp_ports: List[int] = None
-    tcp_ports: List[int] = None
-    wg_public_key_x25519: str = None
+    openvpn_ports: object = None
+    wireguard_ports: object = None
+    x25519pk: str = None
     domain: str = None
     servername: str = None
 

@@ -31,6 +31,8 @@ from tests.boilerplate import VPNServer, VPNCredentials, Settings
 from proton.vpn.backend.linux.networkmanager.core import LinuxNetworkManager
 from proton.vpn.connection import states
 from proton.vpn.connection import events
+from collections import namedtuple
+OpenVPNPorts = namedtuple("OpenVPNPorts", "udp tcp")
 
 
 class LinuxNetworkManagerProtocol(LinuxNetworkManager):
@@ -56,7 +58,9 @@ def nm_client_mock():
 
 def create_nm_protocol(nm_client_mock):
     return LinuxNetworkManagerProtocol(
-        VPNServer(), VPNCredentials(), Settings(), nm_client=nm_client_mock
+        VPNServer(
+                openvpn_ports=OpenVPNPorts([00], [00])
+        ), VPNCredentials(), Settings(), nm_client=nm_client_mock
     )
 
 
@@ -64,7 +68,7 @@ def create_nm_protocol(nm_client_mock):
 @patch("proton.vpn.backend.linux.networkmanager.core.networkmanager.tcpcheck")
 async def test_start(tcpcheck_patch, nm_client_mock):
     # Mock successful TCP connection check.
-    tcpcheck_patch.is_any_port_reachable = AsyncMock(return_value=True)
+    tcpcheck_patch.is_any_port_reachable = AsyncMock()
 
     nm_protocol = create_nm_protocol(nm_client_mock)
 
@@ -279,49 +283,42 @@ async def test_on_state_changed(_notify_subscribers_threadsafe, nm_client_mock, 
     assert isinstance(_notify_subscribers_threadsafe.call_args.args[0], expected_event)
 
 
-# @pytest.mark.asyncio
-# @pytest.mark.parametrize(
-#     "active_nm_connection, inactive_nm_connection, expected_state",
-#     [
-#         (
-#                 Mock(),
-#                 None,
-#                 states.Connected,  # When there is an active connection the initial state is connected.
-#         ),
-#         (
-#                 None,
-#                 None,
-#                 states.Disconnected  # When there is not a connection, the initial state is disconnected.
-#         ),
-#         (
-#                 None,
-#                 Mock(),
-#                 states.Error  # When there is an inactive connection, the initial state is Error.
-#         ),
-#     ]
-# )
-# async def test_initialize_persisted_connection_determines_initial_connection_state(
-#         active_nm_connection, inactive_nm_connection, expected_state
-# ):
-#     persisted_parameters = ConnectionParameters(
-#         connection_id="connection-id",
-#         killswitch=0,
-#         backend=LinuxNetworkManagerProtocol.backend,
-#         protocol=LinuxNetworkManagerProtocol.protocol,
-#         server_id="server-id",
-#         server_name="server-name"
-#     )
-#     nm_client_mock = Mock()
-#     nm_client_mock.get_active_connection.return_value = active_nm_connection
-#     nm_client_mock.get_connection.return_value = inactive_nm_connection
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "active_nm_connection, inactive_nm_connection, expected_state",
+    [
+        (
+                Mock(),
+                None,
+                states.Connected,  # When there is an active connection the initial state is connected.
+        ),
+        (
+                None,
+                None,
+                states.Disconnected  # When there is not a connection, the initial state is disconnected.
+        ),
+        (
+                None,
+                Mock(),
+                states.Error  # When there is an inactive connection, the initial state is Error.
+        ),
+    ]
+)
+async def test_initialize_persisted_connection_determines_initial_connection_state(
+        active_nm_connection, inactive_nm_connection, expected_state
+):
+    nm_client_mock = Mock()
+    nm_client_mock.get_active_connection.return_value = active_nm_connection
+    nm_client_mock.get_connection.return_value = inactive_nm_connection
 
-#     # The VPNConnection constructor calls `_initialize_persisted_connection`
-#     # when `persisted_parameters` are provided.
-#     nm_protocol = LinuxNetworkManagerProtocol(
-#         server=None,
-#         credentials=None,
-#         persisted_parameters=persisted_parameters,
-#         nm_client=nm_client_mock
-#     )
+    # The VPNConnection constructor calls `_initialize_persisted_connection`
+    # when `connection_id` is provided.
+    nm_protocol = LinuxNetworkManagerProtocol(
+        server=None,
+        credentials=None,
+        settings=None,
+        connection_id="connection_id",
+        nm_client=nm_client_mock
+    )
 
-#     assert isinstance(nm_protocol.initial_state, expected_state)
+    assert isinstance(nm_protocol.initial_state, expected_state)

@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.4.1
+%define version 0.4.2
 %define release 1
 
 Prefix: %{_prefix}
@@ -58,6 +58,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Fri Mar 1 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.4.2
+- Update to new interface
+
 * Tue Feb 27 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.4.1
 - Make necessary changes to support Wireguard protocol
 
