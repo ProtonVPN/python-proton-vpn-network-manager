@@ -9,5 +9,5 @@ X-Python3-Version: >= 3.8
 Package: python3-proton-vpn-network-manager
 Architecture: all
 Depends: ${python3:Depends}, ${misc:Depends}, python3-proton-core, python3-proton-vpn-connection, network-manager, python3-gi, gir1.2-nm-1.0
-Break: python3-proton-vpn-network-manager-openvpn (<< 0.0.5), python3-proton-vpn-network-manager-wireguard (<< 0.0.3)
+Breaks: python3-proton-vpn-network-manager-openvpn (<< 0.0.5), python3-proton-vpn-network-manager-wireguard (<< 0.0.3)
 Description: Python3 ProtonVPN Network Manager Backend
