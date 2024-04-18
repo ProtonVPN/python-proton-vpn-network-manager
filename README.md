@@ -25,14 +25,10 @@ the one containing the repositories of all our ProtonVPN components.
 
 ### Known issues
 
-This component depends on the `PyGObject` and `dbus-python` python packages. Unfortunately, quite a few
-distribution packages are required before being able to pip install these 2 dependencies.
+This component depends on the `PyGObject` python package.
 
 To be able to pip install `PyGObject`, please check the required distribution packages in the
 [official documentation](https://pygobject.readthedocs.io/en/latest/devguide/dev_environ.html).
-
-To be able to pip install `dbus-python` (version 1.2.18, at the time of writing), the following Debian
-packages were required on Ubuntu 22.04. You'll need the equivalent packages in other distributions.
 
 ```shell
 sudo apt install pkg-config libdbus-1-dev libglib2.0-dev
