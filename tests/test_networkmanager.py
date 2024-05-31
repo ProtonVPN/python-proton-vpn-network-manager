@@ -39,12 +39,11 @@ class LinuxNetworkManagerProtocol(LinuxNetworkManager):
     """Dummy protocol just to unit test the base LinuxNetworkManager class."""
     protocol = "Dummy protocol"
 
-    def __init__(self, *args, connection_persistence=None, killswitch=None, **kwargs):
+    def __init__(self, *args, connection_persistence=None, **kwargs):
         # Make sure we don't trigger connection persistence nor the kill switch.
         connection_persistence = connection_persistence or Mock()
-        killswitch = killswitch or Mock()
 
-        super().__init__(*args, connection_persistence=connection_persistence, killswitch=killswitch, **kwargs)
+        super().__init__(*args, connection_persistence=connection_persistence, **kwargs)
 
     def setup(self):
         # to be mocked in tests
