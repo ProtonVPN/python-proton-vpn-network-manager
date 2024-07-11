@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.4.2
+%define version 0.5.0
 %define release 1
 
 Prefix: %{_prefix}
@@ -18,20 +18,20 @@ BuildArch: noarch
 BuildRoot: %{_tmppath}/%{unmangled_name}-%{version}-%{release}-buildroot
 
 BuildRequires: python3-gobject
-BuildRequires: python3-dbus
-BuildRequires: python3-proton-vpn-connection
 BuildRequires: NetworkManager
 BuildRequires: gobject-introspection
-BuildRequires: python3-proton-core
 BuildRequires: python3-setuptools
+BuildRequires: python3-proton-core
+BuildRequires: python3-proton-vpn-logger
+BuildRequires: python3-proton-vpn-api-core
 
 Requires: python3-gobject
-Requires: python3-dbus
-Requires: python3-proton-vpn-connection
 Requires: NetworkManager
 Requires: gobject-introspection
-Requires: python3-proton-core
 Requires: python3-setuptools
+Requires: python3-proton-core
+Requires: python3-proton-vpn-logger
+Requires: python3-proton-vpn-api-core
 
 Conflicts: python3-proton-vpn-network-manager-openvpn < 0.0.5
 Conflicts: python3-proton-vpn-network-manager-wireguard < 0.0.3
@@ -58,6 +58,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Thu Jul 11 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.5.0
+- Add proton-vpn-api-core dependency
+
 * Fri Mar 1 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.4.2
 - Update to new interface
 
