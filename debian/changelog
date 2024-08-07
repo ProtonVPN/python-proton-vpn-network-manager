@@ -1,3 +1,9 @@
+protonvpn-network-manager (0.5.1) unstable; urgency=medium
+
+  * Fix app stuck in disconnecting state
+
+ -- Josep Llaneras <josep.llaneras@proton.ch>  Wed, 07 Aug 2024 10:18:07 +0200
+
 protonvpn-network-manager (0.5.0) unstable; urgency=medium
 
   * Add proton-vpn-api-core dependency

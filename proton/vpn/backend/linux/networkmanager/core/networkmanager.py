@@ -145,8 +145,12 @@ class LinuxNetworkManager(VPNConnection):
         connection = connection or self._get_nm_connection()
         if not connection:
             # It can happen that a connection is started, and then it's
-            # stopped before the underlying NM connection was created.
+            # stopped before the underlying NM connection was created. In that case
+            # we flag it as cancelled.
             self._cancelled = True
+            self._notify_subscribers(
+                events.Disconnected(EventContext(connection=self))
+            )
         else:
             await self.remove_connection(connection)
 
