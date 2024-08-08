@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.5.1
+%define version 0.5.2
 %define release 1
 
 Prefix: %{_prefix}
@@ -58,6 +58,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Thu Aug 08 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.5.2
+- Fix app stuck in disconnecting state on OpenVPN
+
 * Wed Aug 07 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.5.1
 - Fix app stuck in disconnecting state
 

@@ -142,15 +142,18 @@ class LinuxNetworkManager(VPNConnection):
     async def stop(self, connection=None):
         """Stops the VPN connection."""
         # We directly remove the connection to avoid leaking NM connections.
-        connection = connection or self._get_nm_connection()
-        if not connection:
-            # It can happen that a connection is started, and then it's
-            # stopped before the underlying NM connection was created. In that case
-            # we flag it as cancelled.
-            self._cancelled = True
+        if not self._is_nm_connection_active():
             self._notify_subscribers(
                 events.Disconnected(EventContext(connection=self))
             )
+
+        connection = connection or self._get_nm_connection()
+        if not connection:
+            # It can happen that a connection is stopped while checking if the server
+            # is reachable, but before the underlying NM connection is created.
+            # In that case we flag it as cancelled, so the creation of the underlying
+            # NM connection is skipped.
+            self._cancelled = True
         else:
             await self.remove_connection(connection)
 
@@ -386,3 +389,9 @@ class LinuxNetworkManager(VPNConnection):
         if not self._unique_id:
             return None
         return self.nm_client.get_connection(self._unique_id)
+
+    def _is_nm_connection_active(self):
+        if not self._unique_id:
+            return False
+
+        return bool(self.nm_client.get_active_connection(self._unique_id))
