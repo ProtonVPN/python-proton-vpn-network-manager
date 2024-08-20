@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.5.2
+%define version 0.5.3
 %define release 1
 
 Prefix: %{_prefix}
@@ -23,7 +23,7 @@ BuildRequires: gobject-introspection
 BuildRequires: python3-setuptools
 BuildRequires: python3-proton-core
 BuildRequires: python3-proton-vpn-logger
-BuildRequires: python3-proton-vpn-api-core
+BuildRequires: python3-proton-vpn-api-core >= 0.33.0
 
 Requires: python3-gobject
 Requires: NetworkManager
@@ -31,7 +31,7 @@ Requires: gobject-introspection
 Requires: python3-setuptools
 Requires: python3-proton-core
 Requires: python3-proton-vpn-logger
-Requires: python3-proton-vpn-api-core
+Requires: python3-proton-vpn-api-core >= 0.33.0
 
 Conflicts: python3-proton-vpn-network-manager-openvpn < 0.0.5
 Conflicts: python3-proton-vpn-network-manager-wireguard < 0.0.3
@@ -58,6 +58,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Tue Aug 20 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.5.3
+- Remove dead code
+
 * Thu Aug 08 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.5.2
 - Fix app stuck in disconnecting state on OpenVPN
 

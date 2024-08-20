@@ -26,7 +26,6 @@ from typing import Optional
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
 from proton.vpn.connection.events import EventContext, Event
-from proton.vpn.connection.persistence import ConnectionParameters
 from proton.vpn.connection.vpnconfiguration import VPNConfiguration
 from proton.vpn.connection.states import StateContext
 
@@ -282,25 +281,6 @@ class LinuxNetworkManager(VPNConnection):
         self._asyncio_loop.call_soon_threadsafe(
             self._notify_subscribers, event
         )
-
-    @classmethod
-    def get_persisted_connection(
-            cls, persisted_parameters: ConnectionParameters
-    ) -> Optional[VPNConnection]:
-        """Abstract method implementation."""
-        if persisted_parameters.backend != cls.backend:
-            return None
-
-        all_protocols = Loader.get_all(LinuxNetworkManager.backend)
-        for protocol in all_protocols:
-            if protocol.cls.protocol == persisted_parameters.protocol:
-                vpn_connection = protocol.cls.from_persistence(
-                    persisted_parameters
-                )
-                if not isinstance(vpn_connection.initial_state, states.Disconnected):
-                    return vpn_connection
-
-        return None
 
     def _initialize_persisted_connection(
             self, connection_id: str
