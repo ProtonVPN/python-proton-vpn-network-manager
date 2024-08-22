@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.5.3
+%define version 0.6.0
 %define release 1
 
 Prefix: %{_prefix}
@@ -19,6 +19,8 @@ BuildRoot: %{_tmppath}/%{unmangled_name}-%{version}-%{release}-buildroot
 
 BuildRequires: python3-gobject
 BuildRequires: NetworkManager
+BuildRequires: NetworkManager-openvpn
+BuildRequires: NetworkManager-openvpn-gnome
 BuildRequires: gobject-introspection
 BuildRequires: python3-setuptools
 BuildRequires: python3-proton-core
@@ -27,14 +29,16 @@ BuildRequires: python3-proton-vpn-api-core >= 0.33.0
 
 Requires: python3-gobject
 Requires: NetworkManager
+Requires: NetworkManager-openvpn
+Requires: NetworkManager-openvpn-gnome
 Requires: gobject-introspection
 Requires: python3-setuptools
 Requires: python3-proton-core
 Requires: python3-proton-vpn-logger
 Requires: python3-proton-vpn-api-core >= 0.33.0
 
-Conflicts: python3-proton-vpn-network-manager-openvpn < 0.0.5
-Conflicts: python3-proton-vpn-network-manager-wireguard < 0.0.3
+Obsoletes: python3-proton-vpn-network-manager-openvpn
+Obsoletes: python3-proton-vpn-network-manager-wireguard
 
 %{?python_disable_dependency_generator}
 
@@ -58,6 +62,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Thu Aug 22 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.6.0
+- Move openvpn and wireguard packages into this one
+
 * Tue Aug 20 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.5.3
 - Remove dead code
 

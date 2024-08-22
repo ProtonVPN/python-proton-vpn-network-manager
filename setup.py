@@ -4,12 +4,16 @@ from setuptools import setup, find_namespace_packages
 
 setup(
     name="proton-vpn-network-manager",
-    version="0.5.3",
+    version="0.6.0",
     description="Proton Technologies VPN connector for linux",
     author="Proton Technologies",
     author_email="contact@protonmail.com",
     url="https://github.com/ProtonVPN/pyhon-protonvpn-network-manager",
-    packages=find_namespace_packages(include=["proton.vpn.backend.linux.networkmanager.core"]),
+    packages=find_namespace_packages(include=[
+        "proton.vpn.backend.linux.networkmanager.core*",
+        "proton.vpn.backend.linux.networkmanager.protocol.openvpn*",
+        "proton.vpn.backend.linux.networkmanager.protocol.wireguard*",
+    ]),
     include_package_data=True,
     install_requires=["proton-core", "proton-vpn-logger", "proton-vpn-api-core", "pygobject", "pycairo"],
     extras_require={
@@ -18,6 +22,11 @@ setup(
     entry_points={
         "proton_loader_backend": [
             "linuxnetworkmanager = proton.vpn.backend.linux.networkmanager.core:LinuxNetworkManager",
+        ],
+        "proton_loader_linuxnetworkmanager": [
+            "openvpn-tcp = proton.vpn.backend.linux.networkmanager.protocol.openvpn:OpenVPNTCP",
+            "openvpn-udp = proton.vpn.backend.linux.networkmanager.protocol.openvpn:OpenVPNUDP",
+            "wireguard = proton.vpn.backend.linux.networkmanager.protocol.wireguard:Wireguard",
         ]
     },
     python_requires=">=3.8",
