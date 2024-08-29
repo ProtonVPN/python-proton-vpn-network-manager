@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.6.3
+%define version 0.6.4
 %define release 1
 
 Prefix: %{_prefix}
@@ -25,7 +25,7 @@ BuildRequires: gobject-introspection
 BuildRequires: python3-setuptools
 BuildRequires: python3-proton-core
 BuildRequires: python3-proton-vpn-logger
-BuildRequires: python3-proton-vpn-api-core >= 0.33.0
+BuildRequires: python3-proton-vpn-api-core >= 0.33.11
 
 Requires: python3-gobject
 Requires: NetworkManager
@@ -35,7 +35,7 @@ Requires: gobject-introspection
 Requires: python3-setuptools
 Requires: python3-proton-core
 Requires: python3-proton-vpn-logger
-Requires: python3-proton-vpn-api-core >= 0.33.0
+Requires: python3-proton-vpn-api-core >= 0.33.11
 
 Obsoletes: python3-proton-vpn-network-manager-openvpn
 Obsoletes: python3-proton-vpn-network-manager-wireguard
@@ -62,6 +62,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Fri Sep 06 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.6.4
+- Implement minimal IPv6 support for WireGuard protocol.
+
 * Mon Sep 02 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.6.3
 - Declare dependency breakage
 
@@ -70,7 +73,6 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 
 * Fri Aug 30 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.6.1
 - Change Replaces by Conflicts clause on debian package
-
 * Thu Aug 22 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.6.0
 - Move openvpn and wireguard packages into this one
 

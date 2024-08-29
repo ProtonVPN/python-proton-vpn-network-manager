@@ -25,6 +25,7 @@ import uuid
 import logging
 from getpass import getuser
 from concurrent.futures import Future
+from dataclasses import dataclass
 
 import gi
 
@@ -44,15 +45,43 @@ from proton.vpn.backend.linux.networkmanager.protocol.wireguard.local_agent.list
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class Config:
+    """Contains all specific details for networking configuration."""
+    address: str
+    address_prefix: int
+    dns_ip: str
+    allowed_ip: str
+    dns_search: str = "~"
+    dns_priority: int = -1500
+
+
+@dataclass
+class WireGuardConfig:
+    """Contains networking configurations for both IPv4/6."""
+    ipv4: Config
+    ipv6: Config
+
+
+wg_config = WireGuardConfig(
+    ipv4=Config(
+        address="10.2.0.2",
+        address_prefix=32,
+        dns_ip="10.2.0.1",
+        allowed_ip="0.0.0.0/0",
+    ),
+    ipv6=Config(
+        address="2a07:b944::2:2",
+        address_prefix=128,
+        dns_ip="2a07:b944::2:1",
+        allowed_ip="::/0",
+    )
+)
+
+
 class Wireguard(LinuxNetworkManager):
     """Creates a Wireguard connection."""
     SIGNAL_NAME = "state-changed"
-    ADDRESS = "10.2.0.2"
-    ADDRESS_PREFIX = 32
-    DNS_IP = "10.2.0.1"
-    DNS_SEARCH = "~"
-    ALLOWED_IP = "0.0.0.0/0"
-    DNS_PRIORITY = -1500
     VIRTUAL_DEVICE_NAME = "proton0"
     protocol = "wireguard"
     ui_protocol = "WireGuard (experimental)"
@@ -121,11 +150,13 @@ class Wireguard(LinuxNetworkManager):
         )
 
     def _set_connection_type(self):
-        self._connection_settings.set_property(NM.SETTING_CONNECTION_TYPE, "wireguard")
+        self._connection_settings.set_property(
+            NM.SETTING_CONNECTION_TYPE, NM.SETTING_WIREGUARD_SETTING_NAME
+        )
 
     def _set_connection_user_owned(self):
         self._connection_settings.add_permission(
-            "user",
+            NM.SETTING_USER_SETTING_NAME,
             getuser(),
             None
         )
@@ -134,12 +165,24 @@ class Wireguard(LinuxNetworkManager):
         ipv4_config = NM.SettingIP4Config.new()
         ipv6_config = NM.SettingIP6Config.new()
 
-        ipv4_config.set_property(NM.SETTING_IP_CONFIG_METHOD, "manual")
+        ipv4_config.set_property(NM.SETTING_IP_CONFIG_METHOD, NM.SETTING_IP4_CONFIG_METHOD_MANUAL)
         ipv4_config.add_address(
-            NM.IPAddress.new(socket.AF_INET, self.ADDRESS, self.ADDRESS_PREFIX)
+            NM.IPAddress.new(socket.AF_INET, wg_config.ipv4.address, wg_config.ipv4.address_prefix)
         )
 
-        ipv6_config.set_property(NM.SETTING_IP_CONFIG_METHOD, "disabled")
+        if self._enable_ipv6_support:
+            ipv6_config.set_property(
+                NM.SETTING_IP_CONFIG_METHOD, NM.SETTING_IP6_CONFIG_METHOD_MANUAL
+            )
+            ipv6_config.add_address(
+                NM.IPAddress.new(
+                    socket.AF_INET6, wg_config.ipv6.address, wg_config.ipv6.address_prefix
+                )
+            )
+        else:
+            ipv6_config.set_property(
+                NM.SETTING_IP_CONFIG_METHOD, NM.SETTING_IP6_CONFIG_METHOD_DISABLED
+            )
 
         self.connection.add_setting(ipv4_config)
         self.connection.add_setting(ipv6_config)
@@ -148,36 +191,59 @@ class Wireguard(LinuxNetworkManager):
         ipv4_config = self.connection.get_setting_ip4_config()
         ipv6_config = self.connection.get_setting_ip6_config()
 
-        ipv4_config.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, self.DNS_PRIORITY)
-        ipv6_config.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, self.DNS_PRIORITY)
-
+        ipv4_config.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, wg_config.ipv4.dns_priority)
         ipv4_config.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
-        ipv6_config.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
 
         if self._settings.dns_custom_ips:
+            # TO-DO: We need to handle cases where user passes custom IPv6 addresses for DNS
             ipv4_config.set_property(NM.SETTING_IP_CONFIG_DNS, self._settings.dns_custom_ips)
         else:
-            ipv4_config.add_dns(self.DNS_IP)
-            ipv4_config.add_dns_search(self.DNS_SEARCH)
+            ipv4_config.add_dns(wg_config.ipv4.dns_ip)
+            ipv4_config.add_dns_search(wg_config.ipv4.dns_search)
+            if self._enable_ipv6_support:
+                ipv6_config.set_property(
+                    NM.SETTING_IP_CONFIG_DNS_PRIORITY, wg_config.ipv6.dns_priority
+                )
+                ipv6_config.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
+                ipv6_config.add_dns(wg_config.ipv6.dns_ip)
+                ipv6_config.add_dns_search(wg_config.ipv6.dns_search)
 
         self.connection.add_setting(ipv4_config)
         self.connection.add_setting(ipv6_config)
 
     def _set_wireguard_properties(self):
         peer = NM.WireGuardPeer.new()
-        peer.append_allowed_ip(self.ALLOWED_IP, False)
+        wireguard_config = NM.SettingWireGuard.new()
+
+        peer.append_allowed_ip(wg_config.ipv4.allowed_ip, False)
         peer.set_endpoint(
             f"{self._vpnserver.server_ip}:{self._vpnserver.wireguard_ports.udp[0]}",
             False
         )
+
         peer.set_public_key(self._vpnserver.x25519pk, False)
+
+        if self._enable_ipv6_support:
+            peer.append_allowed_ip(wg_config.ipv6.allowed_ip, False)
+
+        # Seal the NM.WireGuardPeer instance. Afterwards, it is a bug to call all functions that
+        # modify the instance (except ref/unref). A sealed instance cannot be unsealed again,
+        # but you can create an unsealed copy with NM.WireGuardPeer.new_clone().
+        # https://lazka.github.io/pgi-docs/index.html#NM-1.0/classes/WireGuardPeer.html#NM.WireGuardPeer.seal
+        peer.seal()
 
         # Ensures that the configurations are valid
         # https://lazka.github.io/pgi-docs/index.html#NM-1.0/classes/WireGuardPeer.html#NM.WireGuardPeer.is_valid
         peer.is_valid(True, True)
-
-        wireguard_config = NM.SettingWireGuard.new()
         wireguard_config.append_peer(peer)
+
+        # If we don't set the listen port, NM will automatically set it to the default value 51820,
+        # thus we need to ensure that the endpoint port and the listen port match.
+        # https://lazka.github.io/pgi-docs/index.html#NM-1.0/classes/SettingWireGuard.html#NM.SettingWireGuard.props.listen_port
+        wireguard_config.set_property(
+            NM.SETTING_WIREGUARD_LISTEN_PORT,
+            self._vpnserver.wireguard_ports.udp[0]
+        )
         wireguard_config.set_property(
             NM.SETTING_WIREGUARD_PRIVATE_KEY,
             self._vpncredentials.pubkey_credentials.wg_private_key
@@ -317,6 +383,10 @@ class Wireguard(LinuxNetworkManager):
         if isinstance(state, states.Connected):
             self._async_start_local_agent_listener()
         return state
+
+    @property
+    def _enable_ipv6_support(self) -> bool:
+        return self._vpnserver.has_ipv6_support and self._settings.ipv6
 
     @classmethod
     def _get_priority(cls):
