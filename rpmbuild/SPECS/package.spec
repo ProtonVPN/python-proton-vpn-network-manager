@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.6.2
+%define version 0.6.3
 %define release 1
 
 Prefix: %{_prefix}
@@ -62,6 +62,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Mon Sep 02 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.6.3
+- Declare dependency breakage
+
 * Fri Aug 30 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.6.2
 - Force removal of obsolete packages
 
