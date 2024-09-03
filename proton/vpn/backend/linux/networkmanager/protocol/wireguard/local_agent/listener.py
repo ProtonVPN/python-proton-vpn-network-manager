@@ -17,14 +17,14 @@ You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 import asyncio
-from typing import Optional, List, Awaitable
+from typing import Optional, Awaitable
 
 import proton.vpn.backend.linux.networkmanager.protocol.wireguard.local_agent\
     .fallback_local_agent as fallback_local_agent  # pylint: disable=R0402
 
 from proton.vpn.backend.linux.networkmanager.protocol.wireguard.local_agent \
     import AgentConnection, Status, State, AgentConnector, AgentFeatures, \
-    ErrorMessage, ExpiredCertificateError, ReasonCode
+    ExpiredCertificateError, ReasonCode, APIError  # pylint: disable=R0402
 
 from proton.vpn import logging
 
@@ -35,10 +35,13 @@ class AgentListener:
     """Listens for local agent messages."""
 
     def __init__(
-            self, subscribers: Optional[List[Awaitable]] = None,
+            self,
+            on_status_change: Awaitable,
+            on_error: Awaitable,
             connector: Optional[AgentConnector] = None
     ):
-        self._subscribers = subscribers or []
+        self._on_status_change = on_status_change
+        self._on_error = on_error
         self._connector = connector or AgentConnector()
         self._connection = None
         self._background_task = None
@@ -75,7 +78,7 @@ class AgentListener:
             if not self._connection:
                 # The fallback local agent implementation does not return a connection object.
                 # This branch should be removed after removing the fallback implementation.
-                await self._notify_subscribers(fallback_local_agent.Status(state=State.CONNECTED))
+                await self._notify_status_change(fallback_local_agent.Status(state=State.CONNECTED))
                 return
 
             if features:
@@ -93,15 +96,15 @@ class AgentListener:
                 state=State.DISCONNECTED,
                 reason=fallback_local_agent.Reason(code=ReasonCode.CERTIFICATE_EXPIRED)
             )
-            await self._notify_subscribers(message)
+            await self._notify_status_change(message)
         except TimeoutError:
             logger.warning("Agent connection timed out.")
             message = fallback_local_agent.Status(state=State.DISCONNECTED)
-            await self._notify_subscribers(message)
+            await self._notify_status_change(message)
         except Exception:
             logger.error("Agent listener was unexpectedly closed.")
             message = fallback_local_agent.Status(state=State.DISCONNECTED)
-            await self._notify_subscribers(message)
+            await self._notify_status_change(message)
             raise
         finally:
             if self._connection:
@@ -113,10 +116,10 @@ class AgentListener:
         while True:
             try:
                 message = await connection.read()
-            except ErrorMessage:
-                logger.warning("Unhandled agent error message.", exc_info=True)
+            except APIError as error_message:
+                await self._notify_error(error_message)
                 continue
-            await self._notify_subscribers(message)
+            await self._notify_status_change(message)
 
     async def request_features(self, features: AgentFeatures):
         """Requests the features to be set on the current VPN connection."""
@@ -137,7 +140,10 @@ class AgentListener:
             self._background_task.cancel()
             self._background_task = None
 
-    async def _notify_subscribers(self, message: Status):
+    async def _notify_status_change(self, message: Status):
         """Notify all subscribers of a new message."""
-        for subscriber in self._subscribers:
-            await subscriber(message)
+        await self._on_status_change(message)
+
+    async def _notify_error(self, error: APIError):
+        """Notify all subscribers of a new message."""
+        await self._on_error(error)

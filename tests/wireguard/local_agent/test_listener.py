@@ -10,8 +10,10 @@ from proton.vpn.backend.linux.networkmanager.protocol.wireguard.local_agent.list
 @pytest.mark.asyncio
 async def test_listen_notifies_status_message_to_subscribers():
     # Given
-    subscriber = AsyncMock()
-    listener = AgentListener(subscribers=[subscriber], connector=AsyncMock())
+    status_change = AsyncMock()
+    errors = AsyncMock()
+    listener = AgentListener(on_status_change=status_change, on_error=errors,
+                             connector=AsyncMock())
     message = Status(State.CONNECTED)
     read_called: bool = False
 
@@ -33,13 +35,13 @@ async def test_listen_notifies_status_message_to_subscribers():
         pass
 
     # Then
-    subscriber.assert_called_once_with(message)
+    status_change.assert_called_once_with(message)
 
 
 @pytest.mark.asyncio
 async def test_stop_cancels_background_task():
     # Given
-    listener = AgentListener(connector=AsyncMock())
+    listener = AgentListener(AsyncMock(), AsyncMock(), connector=AsyncMock())
 
     listener.start("domain", "credentials", features=Mock())
     assert listener.background_task

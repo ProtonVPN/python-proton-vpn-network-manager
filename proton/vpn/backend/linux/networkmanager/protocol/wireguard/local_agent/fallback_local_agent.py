@@ -50,10 +50,16 @@ class ExpiredCertificateError(LocalAgentError):
     """
 
 
-class ErrorMessage(LocalAgentError):
-    """
-    Raised when the server returns an error message.
-    """
+class APIError(LocalAgentError):
+    """Base class for API errors."""
+
+
+class SyntaxAPIError(APIError):
+    """Raised for syntax errors in API requests."""
+
+
+class PolicyAPIError(APIError):
+    """Raised for policy errors in API requests."""
 
 
 class State(Enum):  # pylint: disable=too-few-public-methods

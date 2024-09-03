@@ -1,3 +1,10 @@
+
+protonvpn-network-manager (0.8.1) unstable; urgency=medium
+
+  * Notify subscribers on error messages coming from LA.
+
+ -- Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch>  Tues, 24 Sep 2024 10:00:00 +0100
+
 protonvpn-network-manager (0.8.0) unstable; urgency=medium
 
   * Drop logger dependency since it's been merged into core-api.

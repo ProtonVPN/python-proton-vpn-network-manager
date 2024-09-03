@@ -28,18 +28,21 @@ try:
     from .external_local_agent import (
         AgentConnector, AgentConnection, Status,
         State, Reason, ReasonCode, AgentFeatures,
-        LocalAgentError, ExpiredCertificateError, ErrorMessage
+        LocalAgentError, ExpiredCertificateError,
+        PolicyAPIError, SyntaxAPIError, APIError
     )
 except ModuleNotFoundError:
     from .fallback_local_agent import (
         AgentConnector, AgentConnection, Status,
         State, Reason, ReasonCode, AgentFeatures,
-        LocalAgentError, ExpiredCertificateError, ErrorMessage
+        LocalAgentError, ExpiredCertificateError,
+        PolicyAPIError, SyntaxAPIError, APIError
     )
     logger.info("Fallback local agent was loaded.")
 
 __all__ = [
     "AgentConnector", "AgentConnection", "Status",
     "State", "Reason", "ReasonCode", "AgentFeatures",
-    "LocalAgentError", "ExpiredCertificateError", "ErrorMessage"
+    "LocalAgentError", "ExpiredCertificateError",
+    "PolicyAPIError", "SyntaxAPIError", "APIError"
 ]

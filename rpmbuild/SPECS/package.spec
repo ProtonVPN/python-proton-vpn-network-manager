@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.8.0
+%define version 0.8.1
 %define release 1
 
 Prefix: %{_prefix}
@@ -25,6 +25,7 @@ BuildRequires: gobject-introspection
 BuildRequires: python3-setuptools
 BuildRequires: python3-proton-core
 BuildRequires: python3-proton-vpn-api-core >= 0.35.2
+BuildRequires: python3-proton-vpn-local-agent >= 1.0.0
 
 Requires: python3-gobject
 Requires: NetworkManager
@@ -34,6 +35,7 @@ Requires: gobject-introspection
 Requires: python3-setuptools
 Requires: python3-proton-core
 Requires: python3-proton-vpn-api-core >= 0.35.2
+Requires: python3-proton-vpn-local-agent >= 1.0.0
 
 Obsoletes: python3-proton-vpn-network-manager-openvpn
 Obsoletes: python3-proton-vpn-network-manager-wireguard
@@ -60,6 +62,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Mon Sep 24 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.8.1
+- Notify subscribers on error messages coming from LA.
+
 * Mon Sep 23 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.8.0
 - Drop logger dependency since it's been merged into core-api.
 
