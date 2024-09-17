@@ -84,7 +84,7 @@ class Wireguard(LinuxNetworkManager):
     SIGNAL_NAME = "state-changed"
     VIRTUAL_DEVICE_NAME = "proton0"
     protocol = "wireguard"
-    ui_protocol = "WireGuard (experimental)"
+    ui_protocol = "WireGuard"
     connection = None
 
     def __init__(self, *args, **kwargs):
