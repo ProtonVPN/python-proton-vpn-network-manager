@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.7.0
+%define version 0.8.0
 %define release 1
 
 Prefix: %{_prefix}
@@ -11,8 +11,8 @@ Summary: %{unmangled_name} library
 
 Group: ProtonVPN
 License: GPLv3
-Vendor: Proton Technologies AG <opensource@proton.me>
-URL: https://github.com/ProtonVPN/%{unmangled_name}
+Vendor: Proton AG <opensource@proton.me>
+URL: https://github.com/ProtonVPN/python-%{unmangled_name}
 Source0: %{unmangled_name}-%{version}.tar.gz
 BuildArch: noarch
 BuildRoot: %{_tmppath}/%{unmangled_name}-%{version}-%{release}-buildroot
@@ -24,8 +24,7 @@ BuildRequires: NetworkManager-openvpn-gnome
 BuildRequires: gobject-introspection
 BuildRequires: python3-setuptools
 BuildRequires: python3-proton-core
-BuildRequires: python3-proton-vpn-logger
-BuildRequires: python3-proton-vpn-api-core >= 0.33.11
+BuildRequires: python3-proton-vpn-api-core >= 0.35.2
 
 Requires: python3-gobject
 Requires: NetworkManager
@@ -34,8 +33,7 @@ Requires: NetworkManager-openvpn-gnome
 Requires: gobject-introspection
 Requires: python3-setuptools
 Requires: python3-proton-core
-Requires: python3-proton-vpn-logger
-Requires: python3-proton-vpn-api-core >= 0.33.11
+Requires: python3-proton-vpn-api-core >= 0.35.2
 
 Obsoletes: python3-proton-vpn-network-manager-openvpn
 Obsoletes: python3-proton-vpn-network-manager-wireguard
@@ -62,6 +60,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Mon Sep 23 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.8.0
+- Drop logger dependency since it's been merged into core-api.
+
 * Tue Sep 17 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.7.0
 - Promote WireGuard protocol to stable.
 

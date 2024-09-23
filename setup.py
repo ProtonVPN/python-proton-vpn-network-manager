@@ -4,18 +4,18 @@ from setuptools import setup, find_namespace_packages
 
 setup(
     name="proton-vpn-network-manager",
-    version="0.7.0",
+    version="0.8.0",
     description="Proton Technologies VPN connector for linux",
-    author="Proton Technologies",
-    author_email="contact@protonmail.com",
-    url="https://github.com/ProtonVPN/pyhon-protonvpn-network-manager",
+    author="Proton AG",
+    author_email="opensource@proton.me",
+    url="https://github.com/ProtonVPN/python-proton-vpn-network-manager",
     packages=find_namespace_packages(include=[
         "proton.vpn.backend.linux.networkmanager.core*",
         "proton.vpn.backend.linux.networkmanager.protocol.openvpn*",
         "proton.vpn.backend.linux.networkmanager.protocol.wireguard*",
     ]),
     include_package_data=True,
-    install_requires=["proton-core", "proton-vpn-logger", "proton-vpn-api-core", "pygobject", "pycairo"],
+    install_requires=["proton-core", "proton-vpn-api-core", "pygobject", "pycairo"],
     extras_require={
         "development": ["wheel", "pytest", "pytest-cov", "pytest-asyncio", "flake8", "pylint"]
     },
