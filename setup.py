@@ -4,7 +4,7 @@ from setuptools import setup, find_namespace_packages
 
 setup(
     name="proton-vpn-network-manager",
-    version="0.9.1",
+    version="0.9.2",
     description="Proton VPN Network Manager handler.",
     author="Proton AG",
     author_email="opensource@proton.me",

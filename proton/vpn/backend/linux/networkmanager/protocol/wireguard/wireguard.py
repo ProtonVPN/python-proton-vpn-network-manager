@@ -285,36 +285,42 @@ class Wireguard(LinuxNetworkManager):
         """The local agent listener calls this method whenever a new status is
         read from the local agent connection."""
         logger.info("Agent status received: %s", status)
+
+        # Whenever we get an error we don't get the connection details.
+        connection_details = getattr(status, "connection_details", None)
+
+        context = EventContext(connection=self, connection_details=connection_details)
         if status.state == State.CONNECTED:
-            self._notify_subscribers(events.Connected(EventContext(connection=self)))
+            self._notify_subscribers(events.Connected(context))
         elif status.state == State.HARD_JAILED:
             self._handle_hard_jailed_state(status)
         elif status.state == State.DISCONNECTED:
             if status.reason and status.reason.code == ReasonCode.CERTIFICATE_EXPIRED:
                 self._notify_subscribers(
-                    events.ExpiredCertificate(EventContext(connection=self))
+                    events.ExpiredCertificate(context)
                 )
             else:
                 self._notify_subscribers(
-                    events.Timeout(EventContext(connection=self))
+                    events.Timeout(context)
                 )
         else:
             self._notify_subscribers(
-                events.UnexpectedError(EventContext(connection=self))
+                events.UnexpectedError(context)
             )
 
     def _handle_hard_jailed_state(self, status: Status):
+        context = EventContext(connection=self, connection_details=status.connection_details)
         if status.reason.code == ReasonCode.CERTIFICATE_EXPIRED:
             self._notify_subscribers(
-                events.ExpiredCertificate(EventContext(connection=self))
+                events.ExpiredCertificate(context)
             )
         elif self._has_reached_max_amount_of_concurrent_vpn_connections(status.reason.code):
             self._notify_subscribers(
-                events.MaximumSessionsReached(EventContext(connection=self))
+                events.MaximumSessionsReached(context)
             )
         else:
             self._notify_subscribers(
-                events.UnexpectedError(EventContext(connection=self))
+                events.UnexpectedError(context)
             )
 
     def _has_reached_max_amount_of_concurrent_vpn_connections(self, code: ReasonCode) -> bool:
