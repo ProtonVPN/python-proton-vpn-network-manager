@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.8.1
+%define version 0.9.0
 %define release 1
 
 Prefix: %{_prefix}
@@ -24,7 +24,7 @@ BuildRequires: NetworkManager-openvpn-gnome
 BuildRequires: gobject-introspection
 BuildRequires: python3-setuptools
 BuildRequires: python3-proton-core
-BuildRequires: python3-proton-vpn-api-core >= 0.35.2
+BuildRequires: python3-proton-vpn-api-core >= 0.35.4
 BuildRequires: python3-proton-vpn-local-agent >= 1.0.0
 
 Requires: python3-gobject
@@ -34,11 +34,18 @@ Requires: NetworkManager-openvpn-gnome
 Requires: gobject-introspection
 Requires: python3-setuptools
 Requires: python3-proton-core
-Requires: python3-proton-vpn-api-core >= 0.35.2
+Requires: python3-proton-vpn-api-core >= 0.35.4
 Requires: python3-proton-vpn-local-agent >= 1.0.0
+
+Conflicts: python3-proton-vpn-network-manager-openvpn < 0.1.1
+Conflicts: python3-proton-vpn-network-manager-wireguard < 0.4.7
+Conflicts: python3-proton-vpn-killswitch-network-manager < 0.6.1
+Conflicts: python3-proton-vpn-killswitch-network-manager-wireguard < 0.2.1
 
 Obsoletes: python3-proton-vpn-network-manager-openvpn
 Obsoletes: python3-proton-vpn-network-manager-wireguard
+Obsoletes: python3-proton-vpn-killswitch-network-manager
+Obsoletes: python3-proton-vpn-killswitch-network-manager-wireguard
 
 %{?python_disable_dependency_generator}
 
@@ -62,7 +69,10 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
-* Mon Sep 24 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.8.1
+* Wed Sep 25 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.9.0
+- Merge killswitch-network-manager and killswitch-network-manager-wiregaurd packages into this one.
+
+* Tue Sep 24 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.8.1
 - Notify subscribers on error messages coming from LA.
 
 * Mon Sep 23 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.8.0

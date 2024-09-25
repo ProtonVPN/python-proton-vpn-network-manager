@@ -1,9 +1,15 @@
 
+protonvpn-network-manager (0.9.0) unstable; urgency=medium
+
+  * Merge killswitch-network-manager and killswitch-network-manager-wiregaurd packages into this one.
+
+ -- Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch>  Wed, 25 Sep 2024 17:00:00 +0000
+
 protonvpn-network-manager (0.8.1) unstable; urgency=medium
 
   * Notify subscribers on error messages coming from LA.
 
- -- Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch>  Tues, 24 Sep 2024 10:00:00 +0100
+ -- Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch>  Tue, 24 Sep 2024 10:00:00 +0100
 
 protonvpn-network-manager (0.8.0) unstable; urgency=medium
 

@@ -4,8 +4,8 @@ from setuptools import setup, find_namespace_packages
 
 setup(
     name="proton-vpn-network-manager",
-    version="0.8.1",
-    description="Proton Technologies VPN connector for linux",
+    version="0.9.0",
+    description="Proton VPN Network Manager handler.",
     author="Proton AG",
     author_email="opensource@proton.me",
     url="https://github.com/ProtonVPN/python-proton-vpn-network-manager",
@@ -13,9 +13,11 @@ setup(
         "proton.vpn.backend.linux.networkmanager.core*",
         "proton.vpn.backend.linux.networkmanager.protocol.openvpn*",
         "proton.vpn.backend.linux.networkmanager.protocol.wireguard*",
+        "proton.vpn.backend.linux.networkmanager.killswitch.default*",
+        "proton.vpn.backend.linux.networkmanager.killswitch.wireguard*",
     ]),
     include_package_data=True,
-    install_requires=["proton-core", "proton-vpn-api-core", "pygobject", "pycairo"],
+    install_requires=["proton-core", "proton-vpn-api-core", "pygobject", "pycairo", "packaging"],
     extras_require={
         "development": ["wheel", "pytest", "pytest-cov", "pytest-asyncio", "flake8", "pylint"]
     },
@@ -27,6 +29,10 @@ setup(
             "openvpn-tcp = proton.vpn.backend.linux.networkmanager.protocol.openvpn:OpenVPNTCP",
             "openvpn-udp = proton.vpn.backend.linux.networkmanager.protocol.openvpn:OpenVPNUDP",
             "wireguard = proton.vpn.backend.linux.networkmanager.protocol.wireguard:Wireguard",
+        ],
+        "proton_loader_killswitch": [
+            "default = proton.vpn.backend.linux.networkmanager.killswitch.default:NMKillSwitch",
+            "wireguard = proton.vpn.backend.linux.networkmanager.killswitch.wireguard:WGKillSwitch",
         ]
     },
     python_requires=">=3.8",
