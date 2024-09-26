@@ -218,7 +218,7 @@ class LinuxNetworkManager(VPNConnection):
                 NM.VpnConnectionStateReason.SERVICE_START_TIMEOUT
             ]:
                 self._notify_subscribers_threadsafe(
-                    events.Timeout(EventContext(connection=self, error=reason))
+                    events.Timeout(EventContext(connection=self, reason=reason))
                 )
             elif reason in [
                 NM.VpnConnectionStateReason.NO_SECRETS,
@@ -229,7 +229,7 @@ class LinuxNetworkManager(VPNConnection):
                 # certificates, we should treat NO_SECRETS as an
                 # UnexpectedDisconnection event.
                 self._notify_subscribers_threadsafe(
-                    events.AuthDenied(EventContext(connection=self, error=reason))
+                    events.AuthDenied(EventContext(connection=self, reason=reason))
                 )
             else:
                 # reason in [
@@ -243,16 +243,16 @@ class LinuxNetworkManager(VPNConnection):
                 #     NM.VpnConnectionStateReason.CONNECTION_REMOVED,
                 # ]
                 self._notify_subscribers_threadsafe(
-                    events.UnexpectedError(EventContext(connection=self, error=reason))
+                    events.UnexpectedError(EventContext(connection=self, reason=reason))
                 )
         elif state == NM.VpnConnectionState.DISCONNECTED:
             if reason in [NM.VpnConnectionStateReason.USER_DISCONNECTED]:
                 self._notify_subscribers_threadsafe(
-                    events.Disconnected(EventContext(connection=self, error=reason))
+                    events.Disconnected(EventContext(connection=self, reason=reason))
                 )
             elif reason is NM.VpnConnectionStateReason.DEVICE_DISCONNECTED:
                 self._notify_subscribers_threadsafe(
-                    events.DeviceDisconnected(EventContext(connection=self, error=reason))
+                    events.DeviceDisconnected(EventContext(connection=self, reason=reason))
                 )
             else:
                 # reason in [
@@ -268,7 +268,7 @@ class LinuxNetworkManager(VPNConnection):
                 #     NM.VpnConnectionStateReason.CONNECTION_REMOVED,
                 # ]
                 self._notify_subscribers_threadsafe(
-                    events.UnexpectedError(EventContext(connection=self, error=reason))
+                    events.UnexpectedError(EventContext(connection=self, reason=reason))
                 )
         else:
             logger.debug("Ignoring VPN state change: %s", state.value_name)

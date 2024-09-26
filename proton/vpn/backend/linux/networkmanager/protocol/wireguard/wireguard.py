@@ -38,11 +38,10 @@ from proton.vpn.connection.events import EventContext
 from proton.vpn.connection.interfaces import Settings, Features
 from proton.vpn.backend.linux.networkmanager.core import LinuxNetworkManager
 from proton.vpn.backend.linux.networkmanager.protocol.wireguard.local_agent \
-    import Status, State, ReasonCode, AgentFeatures, PolicyAPIError, \
-    SyntaxAPIError, LocalAgentError
+    import Status, State, ReasonCode, AgentFeatures, PolicyAPIError, SyntaxAPIError, APIError
 from proton.vpn.backend.linux.networkmanager.protocol.wireguard.local_agent.listener \
     import AgentListener
-from proton.vpn.connection.exceptions import PolicyError, InvalidSyntaxError, UnexpectedError
+from proton.vpn.connection.exceptions import FeatureError, FeaturePolicyError, FeatureSyntaxError
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +92,8 @@ class Wireguard(LinuxNetworkManager):
         super().__init__(*args, **kwargs)
         self._connection_settings = None
         self._agent_listener = AgentListener(
-            self._on_local_agent_status,
-            self._on_local_agent_error
+            on_status_change=self._on_local_agent_status,
+            on_error=self._on_local_agent_error
         )
 
     def setup(self) -> Future:
@@ -330,29 +329,29 @@ class Wireguard(LinuxNetworkManager):
             ReasonCode.MAX_SESSIONS_PRO
         )
 
-    def _on_local_agent_error(self, error):
+    async def _on_local_agent_error(self, error: Exception):
         """
         The local agent listener calls this method whenever a new error message
         read from the local agent connection.
 
-        :param error: The error received from the local agent, this is an
-            exception type.
+        :param error: The error received from the local agent.
         """
         event = self._get_event_from_error_message(error)
         self._notify_subscribers(event)
 
-    def _get_event_from_error_message(self, error: LocalAgentError) -> events.Event:
+    def _get_event_from_error_message(self, error: Exception) -> events.Event:
         exception_message = str(error)
 
         if isinstance(error, PolicyAPIError):
-            exception = PolicyError(exception_message)
+            new_error = FeaturePolicyError(exception_message)
         elif isinstance(error, SyntaxAPIError):
-            exception = InvalidSyntaxError(exception_message)
+            new_error = FeatureSyntaxError(exception_message)
+        elif isinstance(error, APIError):
+            new_error = FeatureError(exception_message)
         else:
-            exception = UnexpectedError(exception_message)
+            new_error = Exception(exception_message)
 
-        return events.UnhandledError(EventContext(error=exception,
-                                                  connection=self))
+        return events.UnexpectedError(EventContext(error=new_error, connection=self))
 
     def _async_start_local_agent_listener(self):
         """This schedules a local agent listener in asyncio."""
@@ -396,7 +395,7 @@ class Wireguard(LinuxNetworkManager):
         elif state == NM.ActiveConnectionState.DEACTIVATED:
             self._agent_listener.stop()
             self._notify_subscribers_threadsafe(
-                events.Disconnected(EventContext(connection=self, error=reason))
+                events.Disconnected(EventContext(connection=self))
             )
         else:
             logger.debug("Ignoring VPN state change: %s", state.value_name)

@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.9.0
+%define version 0.9.1
 %define release 1
 
 Prefix: %{_prefix}
@@ -24,7 +24,7 @@ BuildRequires: NetworkManager-openvpn-gnome
 BuildRequires: gobject-introspection
 BuildRequires: python3-setuptools
 BuildRequires: python3-proton-core
-BuildRequires: python3-proton-vpn-api-core >= 0.35.4
+BuildRequires: python3-proton-vpn-api-core >= 0.35.5
 BuildRequires: python3-proton-vpn-local-agent >= 1.0.0
 
 Requires: python3-gobject
@@ -34,7 +34,7 @@ Requires: NetworkManager-openvpn-gnome
 Requires: gobject-introspection
 Requires: python3-setuptools
 Requires: python3-proton-core
-Requires: python3-proton-vpn-api-core >= 0.35.4
+Requires: python3-proton-vpn-api-core >= 0.35.5
 Requires: python3-proton-vpn-local-agent >= 1.0.0
 
 Conflicts: python3-proton-vpn-network-manager-openvpn < 0.1.1
@@ -69,6 +69,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Fri Sep 27 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.9.1
+- Fix regression handling local agent errors.
+
 * Wed Sep 25 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.9.0
 - Merge killswitch-network-manager and killswitch-network-manager-wiregaurd packages into this one.
 

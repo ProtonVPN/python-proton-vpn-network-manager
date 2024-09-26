@@ -116,8 +116,8 @@ class AgentListener:
         while True:
             try:
                 message = await connection.read()
-            except APIError as error_message:
-                await self._notify_error(error_message)
+            except APIError as error:
+                await self._notify_error(error)
                 continue
             await self._notify_status_change(message)
 
