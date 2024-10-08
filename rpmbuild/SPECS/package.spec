@@ -1,5 +1,5 @@
 %define unmangled_name proton-vpn-network-manager
-%define version 0.9.2
+%define version 0.9.3
 %define release 1
 
 Prefix: %{_prefix}
@@ -69,6 +69,9 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 %defattr(-,root,root)
 
 %changelog
+* Tue Oct 08 2024 Luke Titley <luke.titley@proton.ch> 0.9.3
+- Move to a centralised way to update the version of the package.
+
 * Wed Oct 02 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.9.2
 - Handle connection details received by local agent.
 
@@ -98,6 +101,7 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 
 * Fri Aug 30 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.6.1
 - Change Replaces by Conflicts clause on debian package
+
 * Thu Aug 22 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.6.0
 - Move openvpn and wireguard packages into this one
 
@@ -113,7 +117,7 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 * Thu Jul 11 2024 Josep Llaneras <josep.llaneras@proton.ch> 0.5.0
 - Add proton-vpn-api-core dependency
 
-* Fri Mar 1 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.4.2
+* Fri Mar 01 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.4.2
 - Update to new interface
 
 * Tue Feb 27 2024 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.4.1
@@ -138,7 +142,7 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 - Fix state machine getting stuck in disconnecting state.
 
 * Mon Sep 04 2023 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.3.0
-- Add time delay before making tcpcheck call, due to kill switch, to ensure that server is reacheable 
+- Add time delay before making tcpcheck call, due to kill switch, to ensure that server is reacheable
 
 * Wed Jul 05 2023 Alexandru Cheltuitor <alexandru.cheltuitor@proton.ch> 0.2.7
 - Update Loader.get_all() argument for getting NetworkManager protocols
@@ -169,9 +173,10 @@ python3 setup.py install --single-version-externally-managed -O1 --root=$RPM_BUI
 * Fri Dec 02 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.1.0
 - Add persisted connection parameters to connection state
 
-* Fri Nov 4 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.0.2
+* Fri Nov 04 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.0.2
 - Set up connection asynchronously
 - Run a single separate main loop for NM client
 
-* Wed Jun 1 2022 Proton Technologies AG <opensource@proton.me> 0.0.1
-- First RPM release
+* Wed Jun 01 2022 Josep Llaneras <josep.llaneras@proton.ch> 0.0.1
+- First release
+

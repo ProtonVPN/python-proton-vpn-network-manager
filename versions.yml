@@ -1,0 +1,329 @@
+version: 0.9.3
+time: 2024/10/08 15:00
+author: Luke Titley
+email: luke.titley@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Move to a centralised way to update the version of the package.
+---
+version: 0.9.2
+time: 2024/10/02 13:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Handle connection details received by local agent.
+---
+version: 0.9.1
+time: 2024/09/27 11:16
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Fix regression handling local agent errors.
+---
+version: 0.9.0
+time: 2024/09/25 17:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Merge killswitch-network-manager and killswitch-network-manager-wiregaurd packages
+  into this one.
+---
+version: 0.8.1
+time: 2024/09/24 09:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Notify subscribers on error messages coming from LA.
+---
+version: 0.8.0
+time: 2024/09/23 12:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Drop logger dependency since it's been merged into core-api.
+---
+version: 0.7.0
+time: 2024/09/17 10:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Promote WireGuard protocol to stable.
+---
+version: 0.6.4
+time: 2024/09/06 15:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Implement minimal IPv6 support for WireGuard protocol.
+---
+version: 0.6.3
+time: 2024/09/02 08:26
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Declare dependency breakage
+---
+version: 0.6.2
+time: 2024/08/30 15:32
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Force removal of obsolete packages
+---
+version: 0.6.1
+time: 2024/08/30 14:42
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Change Replaces by Conflicts clause on debian package
+---
+version: 0.6.0
+time: 2024/08/22 12:52
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Move openvpn and wireguard packages into this one
+---
+version: 0.5.3
+time: 2024/08/20 09:05
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Remove dead code
+---
+version: 0.5.2
+time: 2024/08/08 14:42
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Fix app stuck in disconnecting state on OpenVPN
+---
+version: 0.5.1
+time: 2024/08/07 08:18
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Fix app stuck in disconnecting state
+---
+version: 0.5.0
+time: 2024/07/11 07:00
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Add proton-vpn-api-core dependency
+---
+version: 0.4.2
+time: 2024/03/01 09:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Update to new interface
+---
+version: 0.4.1
+time: 2024/02/27 09:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Make necessary changes to support Wireguard protocol
+---
+version: 0.4.0
+time: 2024/02/14 14:52
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Initialize connection with persisted parameters
+---
+version: 0.3.5
+time: 2024/01/31 11:06
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Remove connection delay
+---
+version: 0.3.4
+time: 2024/01/31 09:05
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Initialize state machine in Error state when inactive VPN connection is found
+---
+version: 0.3.3
+time: 2024/01/11 15:42
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Fix deadlock when notifying connection subscribers
+---
+version: 0.3.2
+time: 2024/01/09 13:32
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Fix connection cancellation
+---
+version: 0.3.1
+time: 2023/12/13 11:26
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Fix state machine getting stuck in disconnecting state.
+---
+version: 0.3.0
+time: 2023/09/04 09:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Add time delay before making tcpcheck call, due to kill switch, to ensure that server
+  is reacheable
+---
+version: 0.2.7
+time: 2023/07/05 11:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Update Loader.get_all() argument for getting NetworkManager protocols
+---
+version: 0.2.6
+time: 2023/04/14 07:54
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Test network connectivity to the server before starting the VPN connection
+---
+version: 0.2.5
+time: 2023/04/03 13:52
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Adapt to VPN connection refactoring
+---
+version: 0.2.4
+time: 2023/02/09 10:04
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Log exception when trying to connect and the network interface is not available
+---
+version: 0.2.3
+time: 2022/12/30 10:20
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Remove network manager connection when the VPN connection is stopped
+---
+version: 0.2.2
+time: 2022/12/21 11:16
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Do not leak NetworkManager connections on connection setup errors
+---
+version: 0.2.1
+time: 2022/12/20 16:16
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Handle errors happening while setting up or starting the connection
+- 'Split stop_connection in 2: stop_connection and remove_connection'
+- Ovewrite remove_persistence so that it also removes the NM connection
+---
+version: 0.2.0
+time: 2022/12/14 09:20
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Handle device disconnected event
+---
+version: 0.1.0
+time: 2022/12/02 17:13
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Add persisted connection parameters to connection state
+---
+version: 0.0.2
+time: 2022/11/04 09:00
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: UNRELEASED
+description:
+- Set up connection asynchronously
+- Run a single separate main loop for NM client
+---
+version: 0.0.1
+time: 2022/06/01 09:00
+author: Josep Llaneras
+email: josep.llaneras@proton.ch
+urgency: medium
+stability: UNRELEASED
+description:
+- First release
+

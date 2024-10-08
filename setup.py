@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_namespace_packages
+import re
+
+VERSIONS = 'versions.yml'
+VERSION = re.search(r'version: (\S+)', open(VERSIONS).readline()).group(1)
 
 setup(
     name="proton-vpn-network-manager",
-    version="0.9.2",
+    version=VERSION,
     description="Proton VPN Network Manager handler.",
     author="Proton AG",
     author_email="opensource@proton.me",
