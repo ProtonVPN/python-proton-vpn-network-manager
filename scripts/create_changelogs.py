@@ -16,7 +16,8 @@ ROOT = os.path.dirname(
 
 NAME      = "protonvpn-network-manager"  # Name of this application.
 VERSIONS  = os.path.join(ROOT, "versions.yml")  # Name of this applications versions.yml
-RPM       = os.path.join(ROOT, "rpmbuild", "SPECS", "package.spec")  # Path of spec filefor rpm.
+RPM       = os.path.join(ROOT, "rpmbuild", "SPECS", "package.spec")  # Path of spec file for rpm.
+RPM_TMPLT = os.path.join(ROOT, "rpmbuild", "SPECS", "package.spec.template")  # Path of spec file template for rpm.
 DEB       = os.path.join(ROOT, "debian", "changelog")  # Path of debian changelog.
 MARKDOWN  = os.path.join(ROOT, "CHANGELOG.md",)  # Path of CHANGELOG.md.
 
@@ -106,7 +107,7 @@ def build():
         versions_yml = list(yaml.safe_load_all(versions_file))
 
         # Make our files
-        versions.build_rpm(RPM,      versions_yml, SPEC_TEMPLATE)
+        versions.build_rpm(RPM,      versions_yml, RPM_TMPLT)
         versions.build_deb(DEB,      versions_yml, NAME)
         versions.build_mkd(MARKDOWN, versions_yml)
 
