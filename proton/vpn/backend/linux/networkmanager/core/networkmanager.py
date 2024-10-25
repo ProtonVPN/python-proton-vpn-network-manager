@@ -21,7 +21,8 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 import asyncio
 import logging
-from typing import Optional
+import ipaddress
+from typing import Optional, Union
 
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
@@ -66,6 +67,50 @@ class LinuxNetworkManager(VPNConnection):
         """Returns the VPN connection implementation class
          for the specified protocol."""
         return Loader.get(LinuxNetworkManager.backend, class_name=protocol)
+
+    def configure_dns(
+        self,
+        nm_setting: Union[NM.SettingIP4Config, NM.SettingIP6Config],
+        ip_version: int,
+        dns_priority: int = -1500,
+    ):
+        """Sets the DNS values"""
+        nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, dns_priority)
+        nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
+
+        if self._settings.dns_custom_ips:
+            ip_addresses = LinuxNetworkManager.iterate_valid_ip_addresses(
+                self._settings.dns_custom_ips,
+                address_version=ip_version
+            )
+            nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS, ip_addresses)
+
+    @staticmethod
+    def iterate_valid_ip_addresses(addresses: list[str],
+                                   address_version: int) -> list[str]:
+        """
+        Iterates over a list of IP addresses and returns the valid ones.
+
+        :param addresses: list of IP addresses
+        :type addresses: list[str]
+        :param address_version: IP address version this can be 4 or 6
+        :type address_version: int
+        """
+        if address_version not in [4, 6]:
+            raise TypeError("Invalid IP protocol passed")
+
+        valid_addresses = []
+        for address in addresses:
+            try:
+                addr = ipaddress.ip_address(address)
+                if addr.version == address_version:
+                    valid_addresses.append(addr.exploded)
+            # pylint: disable=broad-except
+            except ValueError:
+                # If we get here it's because we've hit an address that is not
+                # a valid IP address. We skip these.
+                continue
+        return valid_addresses
 
     async def start(self):
         """
@@ -318,6 +363,11 @@ class LinuxNetworkManager(VPNConnection):
         in order to have it working.
         """
         raise NotImplementedError
+
+    @property
+    def enable_ipv6_support(self) -> bool:
+        """Returns if IPv6 support is enabled or not."""
+        return self._vpnserver.has_ipv6_support and self._settings.ipv6
 
     @classmethod
     def _get_priority(cls):

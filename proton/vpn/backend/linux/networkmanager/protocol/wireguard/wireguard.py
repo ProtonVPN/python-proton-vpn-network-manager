@@ -19,6 +19,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
+from typing import Union
 import asyncio
 import socket
 import uuid
@@ -62,6 +63,18 @@ class WireGuardConfig:
     """Contains networking configurations for both IPv4/6."""
     ipv4: Config
     ipv6: Config
+
+    def get_dns_ip_for_protocol_version(self, ip_version: int):
+        """Returns dns IP value based on IP version."""
+        if ip_version == 4:
+            return self.ipv4.dns_ip
+        return self.ipv6.dns_ip
+
+    def get_dns_search_for_protocol_version(self, ip_version: int):
+        """Returns dns search value based on IP version."""
+        if ip_version == 4:
+            return self.ipv4.dns_search
+        return self.ipv6.dns_search
 
 
 wg_config = WireGuardConfig(
@@ -172,7 +185,7 @@ class Wireguard(LinuxNetworkManager):
             NM.IPAddress.new(socket.AF_INET, wg_config.ipv4.address, wg_config.ipv4.address_prefix)
         )
 
-        if self._enable_ipv6_support:
+        if self.enable_ipv6_support:
             ipv6_config.set_property(
                 NM.SETTING_IP_CONFIG_METHOD, NM.SETTING_IP6_CONFIG_METHOD_MANUAL
             )
@@ -189,26 +202,29 @@ class Wireguard(LinuxNetworkManager):
         self.connection.add_setting(ipv4_config)
         self.connection.add_setting(ipv6_config)
 
+    def configure_dns(
+        self,
+        nm_setting: Union[NM.SettingIP4Config, NM.SettingIP6Config],
+        ip_version: int,
+        dns_priority: int = -1500,
+    ):
+        """Re-implements configure_dns methods from LinuxNetworkManager."""
+        super().configure_dns(nm_setting, ip_version, dns_priority)
+        if not self._settings.dns_custom_ips:
+            nm_setting.add_dns(wg_config.get_dns_ip_for_protocol_version(ip_version))
+            nm_setting.add_dns_search(wg_config.get_dns_search_for_protocol_version(ip_version))
+
     def _set_dns(self):
         ipv4_config = self.connection.get_setting_ip4_config()
         ipv6_config = self.connection.get_setting_ip6_config()
 
-        ipv4_config.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, wg_config.ipv4.dns_priority)
-        ipv4_config.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
+        self.configure_dns(nm_setting=ipv4_config, ip_version=4)
 
-        if self._settings.dns_custom_ips:
-            # TO-DO: We need to handle cases where user passes custom IPv6 addresses for DNS
-            ipv4_config.set_property(NM.SETTING_IP_CONFIG_DNS, self._settings.dns_custom_ips)
+        if self.enable_ipv6_support:
+            self.configure_dns(nm_setting=ipv6_config, ip_version=6)
         else:
-            ipv4_config.add_dns(wg_config.ipv4.dns_ip)
-            ipv4_config.add_dns_search(wg_config.ipv4.dns_search)
-            if self._enable_ipv6_support:
-                ipv6_config.set_property(
-                    NM.SETTING_IP_CONFIG_DNS_PRIORITY, wg_config.ipv6.dns_priority
-                )
-                ipv6_config.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
-                ipv6_config.add_dns(wg_config.ipv6.dns_ip)
-                ipv6_config.add_dns_search(wg_config.ipv6.dns_search)
+            ipv6_config.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, wg_config.ipv6.dns_priority)
+            ipv6_config.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
 
         self.connection.add_setting(ipv4_config)
         self.connection.add_setting(ipv6_config)
@@ -225,7 +241,7 @@ class Wireguard(LinuxNetworkManager):
 
         peer.set_public_key(self._vpnserver.x25519pk, False)
 
-        if self._enable_ipv6_support:
+        if self.enable_ipv6_support:
             peer.append_allowed_ip(wg_config.ipv6.allowed_ip, False)
 
         # Seal the NM.WireGuardPeer instance. Afterwards, it is a bug to call all functions that
@@ -415,10 +431,6 @@ class Wireguard(LinuxNetworkManager):
         if isinstance(state, states.Connected):
             self._async_start_local_agent_listener()
         return state
-
-    @property
-    def _enable_ipv6_support(self) -> bool:
-        return self._vpnserver.has_ipv6_support and self._settings.ipv6
 
     @classmethod
     def _get_priority(cls):
