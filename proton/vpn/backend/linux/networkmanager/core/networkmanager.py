@@ -76,9 +76,9 @@ class LinuxNetworkManager(VPNConnection):
     ):
         """Sets the DNS values"""
         nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, dns_priority)
-        nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
 
         if self._settings.dns_custom_ips:
+            nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
             ip_addresses = LinuxNetworkManager.iterate_valid_ip_addresses(
                 self._settings.dns_custom_ips,
                 address_version=ip_version

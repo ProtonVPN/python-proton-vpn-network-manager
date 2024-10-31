@@ -1,3 +1,12 @@
+version: 0.9.6
+time: 2024/10/30 09:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Fix bug where automatic DNS settings is ignored, regardless if custom DNS is passed or not.
+---
 version: 0.9.5
 time: 2024/10/30 12:00
 author: Luke Titley

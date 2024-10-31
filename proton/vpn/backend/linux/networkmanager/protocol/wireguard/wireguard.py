@@ -210,6 +210,8 @@ class Wireguard(LinuxNetworkManager):
     ):
         """Re-implements configure_dns methods from LinuxNetworkManager."""
         super().configure_dns(nm_setting, ip_version, dns_priority)
+        nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
+
         if not self._settings.dns_custom_ips:
             nm_setting.add_dns(wg_config.get_dns_ip_for_protocol_version(ip_version))
             nm_setting.add_dns_search(wg_config.get_dns_search_for_protocol_version(ip_version))
