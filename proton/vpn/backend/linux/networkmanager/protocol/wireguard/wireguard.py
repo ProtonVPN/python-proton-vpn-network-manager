@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
 from typing import Union
+from ipaddress import IPv4Address, IPv6Address
 import asyncio
 import socket
 import uuid
@@ -64,15 +65,15 @@ class WireGuardConfig:
     ipv4: Config
     ipv6: Config
 
-    def get_dns_ip_for_protocol_version(self, ip_version: int):
+    def get_dns_ip_for_protocol_version(self, ip_version: Union[IPv4Address, IPv6Address]):
         """Returns dns IP value based on IP version."""
-        if ip_version == 4:
+        if ip_version == IPv4Address:
             return self.ipv4.dns_ip
         return self.ipv6.dns_ip
 
-    def get_dns_search_for_protocol_version(self, ip_version: int):
+    def get_dns_search_for_protocol_version(self, ip_version: Union[IPv4Address, IPv6Address]):
         """Returns dns search value based on IP version."""
-        if ip_version == 4:
+        if ip_version == IPv4Address:
             return self.ipv4.dns_search
         return self.ipv6.dns_search
 
@@ -205,14 +206,14 @@ class Wireguard(LinuxNetworkManager):
     def configure_dns(
         self,
         nm_setting: Union[NM.SettingIP4Config, NM.SettingIP6Config],
-        ip_version: int,
+        ip_version: Union[IPv4Address, IPv6Address],
         dns_priority: int = -1500,
     ):
         """Re-implements configure_dns methods from LinuxNetworkManager."""
         super().configure_dns(nm_setting, ip_version, dns_priority)
         nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
 
-        if not self._settings.dns_custom_ips:
+        if not self._settings.custom_dns_enabled:
             nm_setting.add_dns(wg_config.get_dns_ip_for_protocol_version(ip_version))
             nm_setting.add_dns_search(wg_config.get_dns_search_for_protocol_version(ip_version))
 
@@ -220,10 +221,10 @@ class Wireguard(LinuxNetworkManager):
         ipv4_config = self.connection.get_setting_ip4_config()
         ipv6_config = self.connection.get_setting_ip6_config()
 
-        self.configure_dns(nm_setting=ipv4_config, ip_version=4)
+        self.configure_dns(nm_setting=ipv4_config, ip_version=IPv4Address)
 
         if self.enable_ipv6_support:
-            self.configure_dns(nm_setting=ipv6_config, ip_version=6)
+            self.configure_dns(nm_setting=ipv6_config, ip_version=IPv6Address)
         else:
             ipv6_config.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, wg_config.ipv6.dns_priority)
             ipv6_config.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)

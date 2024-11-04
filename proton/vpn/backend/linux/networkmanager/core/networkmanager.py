@@ -19,10 +19,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 """
+from ipaddress import IPv4Address, IPv6Address
 import asyncio
 import logging
-import ipaddress
-from typing import Optional, Union, List
+from typing import Optional, Union
 
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
@@ -71,46 +71,25 @@ class LinuxNetworkManager(VPNConnection):
     def configure_dns(
         self,
         nm_setting: Union[NM.SettingIP4Config, NM.SettingIP6Config],
-        ip_version: int,
+        ip_version: Union[IPv4Address, IPv6Address],
         dns_priority: int = -1500,
     ):
         """Sets the DNS values"""
         nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, dns_priority)
 
-        if self._settings.dns_custom_ips:
-            nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
-            ip_addresses = LinuxNetworkManager.iterate_valid_ip_addresses(
-                self._settings.dns_custom_ips,
-                address_version=ip_version
-            )
-            nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS, ip_addresses)
+        if self._settings.custom_dns_enabled:
+            if ip_version == IPv4Address:
+                custom_dns_ips = self._settings.get_ipv4_custom_dns_ips()
+            elif ip_version == IPv6Address:
+                custom_dns_ips = self._settings.get_ipv6_custom_dns_ips()
+            else:
+                raise ValueError(f"Unknown IP version: {ip_version}")
 
-    @staticmethod
-    def iterate_valid_ip_addresses(addresses: List[str],
-                                   address_version: int) -> List[str]:
-        """
-        Iterates over a list of IP addresses and returns the valid ones.
+            ip_addresses = [dns.exploded for dns in custom_dns_ips]
 
-        :param addresses: list of IP addresses
-        :type addresses: list[str]
-        :param address_version: IP address version this can be 4 or 6
-        :type address_version: int
-        """
-        if address_version not in [4, 6]:
-            raise TypeError("Invalid IP protocol passed")
-
-        valid_addresses = []
-        for address in addresses:
-            try:
-                addr = ipaddress.ip_address(address)
-                if addr.version == address_version:
-                    valid_addresses.append(addr.exploded)
-            # pylint: disable=broad-except
-            except ValueError:
-                # If we get here it's because we've hit an address that is not
-                # a valid IP address. We skip these.
-                continue
-        return valid_addresses
+            if ip_addresses:
+                nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
+                nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS, ip_addresses)
 
     async def start(self):
         """

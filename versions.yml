@@ -1,3 +1,12 @@
+version: 0.9.8
+time: 2024/11/06 16:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: medium
+stability: unstable
+description:
+- Refactor code so that new changes are taken into consideration.
+---
 version: 0.9.7
 time: 2024/11/06 15:35
 author: Luke Titley
