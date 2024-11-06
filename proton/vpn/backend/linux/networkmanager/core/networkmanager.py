@@ -22,7 +22,7 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 import asyncio
 import logging
 import ipaddress
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
@@ -86,8 +86,8 @@ class LinuxNetworkManager(VPNConnection):
             nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS, ip_addresses)
 
     @staticmethod
-    def iterate_valid_ip_addresses(addresses: list[str],
-                                   address_version: int) -> list[str]:
+    def iterate_valid_ip_addresses(addresses: List[str],
+                                   address_version: int) -> List[str]:
         """
         Iterates over a list of IP addresses and returns the valid ones.
 
