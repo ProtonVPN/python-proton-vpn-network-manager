@@ -97,10 +97,18 @@ class OpenVPN(LinuxNetworkManager):
         ipv4_config = self.connection.get_setting_ip4_config()
         ipv6_config = self.connection.get_setting_ip6_config()
 
-        self.configure_dns(nm_setting=ipv4_config, ip_version=IPv4Address)
+        self.configure_dns(
+            nm_setting=ipv4_config,
+            ip_version=IPv4Address,
+            connection_settings=self._connection_settings
+        )
 
         if self.enable_ipv6_support:
-            self.configure_dns(nm_setting=ipv6_config, ip_version=IPv6Address)
+            self.configure_dns(
+                nm_setting=ipv6_config,
+                ip_version=IPv6Address,
+                connection_settings=self._connection_settings
+            )
         else:
             ipv6_config.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, self.DNS_PRIORITY)
             ipv6_config.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)

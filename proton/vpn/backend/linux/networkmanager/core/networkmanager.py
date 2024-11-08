@@ -23,6 +23,7 @@ from ipaddress import IPv4Address, IPv6Address
 import asyncio
 import logging
 from typing import Optional, Union
+from enum import IntEnum
 
 from proton.loader import Loader
 from proton.vpn.connection import VPNConnection, events, states
@@ -34,6 +35,19 @@ from proton.vpn.backend.linux.networkmanager.core.nmclient import NM, NMClient, 
 from proton.vpn.backend.linux.networkmanager.core import tcpcheck
 
 logger = logging.getLogger(__name__)
+
+
+class DnsOverTls(IntEnum):
+    """See docs:
+    https://lazka.github.io/pgi-docs/index.html#NM-1.0/classes/SettingConnection.html#NM.SettingConnection.props.dns_over_tls
+
+    0: don’t ever use DNSOverTls
+    1: use DNSOverTls but allow fallback to unencrypted resolution
+    2: use DNSOverTls and disable fallback
+    """
+    DISABLED = 0
+    FALLBACK = 1
+    ONLY_TLS = 2
 
 
 class LinuxNetworkManager(VPNConnection):
@@ -72,24 +86,30 @@ class LinuxNetworkManager(VPNConnection):
         self,
         nm_setting: Union[NM.SettingIP4Config, NM.SettingIP6Config],
         ip_version: Union[IPv4Address, IPv6Address],
+        connection_settings: NM.SettingConnection,
         dns_priority: int = -1500,
     ):
         """Sets the DNS values"""
         nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, dns_priority)
 
-        if self._settings.custom_dns_enabled:
-            if ip_version == IPv4Address:
-                custom_dns_ips = self._settings.get_ipv4_custom_dns_ips()
-            elif ip_version == IPv6Address:
-                custom_dns_ips = self._settings.get_ipv6_custom_dns_ips()
-            else:
-                raise ValueError(f"Unknown IP version: {ip_version}")
+        if not self._settings.custom_dns.enabled:
+            return
 
-            ip_addresses = [dns.exploded for dns in custom_dns_ips]
+        if ip_version == IPv4Address:
+            custom_dns_ips = self._settings.custom_dns.get_enabled_ipv4_ips()
+        elif ip_version == IPv6Address:
+            custom_dns_ips = self._settings.custom_dns.get_enabled_ipv6_ips()
+        else:
+            raise ValueError(f"Unknown IP version: {ip_version}")
 
-            if ip_addresses:
-                nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
-                nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS, ip_addresses)
+        ip_addresses = [dns.exploded for dns in custom_dns_ips]
+
+        if ip_addresses:
+            connection_settings.set_property(
+                NM.SETTING_CONNECTION_DNS_OVER_TLS, DnsOverTls.FALLBACK
+            )
+            nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
+            nm_setting.set_property(NM.SETTING_IP_CONFIG_DNS, ip_addresses)
 
     async def start(self):
         """
