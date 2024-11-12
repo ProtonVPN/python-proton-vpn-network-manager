@@ -137,7 +137,7 @@ class Wireguard(LinuxNetworkManager):
     async def update_settings(self, settings: Settings):
         """Update features on the active agent connection."""
         await super().update_settings(settings)
-        if self._agent_listener.is_running:
+        if self._agent_listener.is_running:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             await self._request_connection_features(settings.features)
 
     def _modify_connection(self):
@@ -301,7 +301,7 @@ class Wireguard(LinuxNetworkManager):
         )
 
     async def _start_local_agent_listener(self):
-        if self._agent_listener.is_running:
+        if self._agent_listener.is_running:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             logger.info("Closing existing agent connection...")
             self._agent_listener.stop()
 

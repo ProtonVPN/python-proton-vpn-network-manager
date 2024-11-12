@@ -102,7 +102,7 @@ class NMClient:
         For more info:
         https://developer.gnome.org/documentation/tutorials/main-contexts.html#checking-threading
         """
-        assert cls._main_context.is_owner()  # nosec assert_used
+        assert cls._main_context.is_owner()  # nosec B311, B101 # noqa: E501 # pylint: disable=line-too-long # nosemgrep: gitlab.bandit.B101
 
     @classmethod
     def _run_on_main_loop_thread(cls, function):

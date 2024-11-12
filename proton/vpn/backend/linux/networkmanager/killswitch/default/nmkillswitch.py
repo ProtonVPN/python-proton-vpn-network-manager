@@ -23,7 +23,7 @@ along with ProtonVPN.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Optional, TYPE_CHECKING
 
-import subprocess  # nosec B404:blacklist
+import subprocess  # nosec B404:blacklist # nosemgrep: gitlab.bandit.B404
 
 from proton.vpn.killswitch.interface import KillSwitch
 from proton.vpn.backend.linux.networkmanager.killswitch.default.killswitch_connection_handler\
@@ -99,7 +99,7 @@ class NMKillSwitch(KillSwitch):
         is_libnetplan1_installed = False
 
         try:
-            KillSwitchConnectionHandler().is_network_manager_running
+            KillSwitchConnectionHandler().is_network_manager_running  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
         except (ModuleNotFoundError, ImportError):
             logger.error("NetworkManager is not running.")
             return False

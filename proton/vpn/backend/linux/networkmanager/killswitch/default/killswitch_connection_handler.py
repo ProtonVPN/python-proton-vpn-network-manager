@@ -242,6 +242,6 @@ class KillSwitchConnectionHandler:
         await _wrap_future(self.nm_client.remove_connection_async(connection))
 
     async def _ensure_connectivity_check_is_disabled(self):
-        if self.is_connectivity_check_enabled:
+        if self.is_connectivity_check_enabled:  # noqa: E501 # pylint: disable=line-too-long # nosemgrep: python.lang.maintainability.is-function-without-parentheses.is-function-without-parentheses
             await _wrap_future(self.nm_client.disable_connectivity_check())
             logger.info("Network connectivity check was disabled.")
