@@ -207,13 +207,11 @@ class Wireguard(LinuxNetworkManager):
         self,
         nm_setting: Union[NM.SettingIP4Config, NM.SettingIP6Config],
         ip_version: Union[IPv4Address, IPv6Address],
-        connection_settings: NM.SettingConnection,
         dns_priority: int = -1500,
     ):
         """Re-implements configure_dns methods from LinuxNetworkManager."""
         super().configure_dns(
-            nm_setting=nm_setting, ip_version=ip_version,
-            connection_settings=connection_settings, dns_priority=dns_priority
+            nm_setting=nm_setting, ip_version=ip_version, dns_priority=dns_priority
         )
         nm_setting.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)
 
@@ -225,18 +223,10 @@ class Wireguard(LinuxNetworkManager):
         ipv4_config = self.connection.get_setting_ip4_config()
         ipv6_config = self.connection.get_setting_ip6_config()
 
-        self.configure_dns(
-            nm_setting=ipv4_config,
-            ip_version=IPv4Address,
-            connection_settings=self._connection_settings
-        )
+        self.configure_dns(nm_setting=ipv4_config, ip_version=IPv4Address)
 
         if self.enable_ipv6_support:
-            self.configure_dns(
-                nm_setting=ipv6_config,
-                ip_version=IPv6Address,
-                connection_settings=self._connection_settings
-            )
+            self.configure_dns(nm_setting=ipv6_config, ip_version=IPv6Address)
         else:
             ipv6_config.set_property(NM.SETTING_IP_CONFIG_DNS_PRIORITY, wg_config.ipv6.dns_priority)
             ipv6_config.set_property(NM.SETTING_IP_CONFIG_IGNORE_AUTO_DNS, True)

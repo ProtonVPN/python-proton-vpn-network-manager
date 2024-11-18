@@ -1,3 +1,12 @@
+version: 0.9.11
+time: 2024/11/18 13:00
+author: Alexandru Cheltuitor
+email: alexandru.cheltuitor@proton.ch
+urgency: low
+stability: unstable
+description:
+- Remove DoH.
+---
 version: 0.9.10
 time: 2024/11/15 09:58
 author: Luke Titley
@@ -5,7 +14,7 @@ email: luke.titley@proton.ch
 urgency: low
 stability: unstable
 description:
-- Added semgrep scanning to CI
+- Added semgrep scanning to CI.
 ---
 version: 0.9.9
 time: 2024/11/08 16:00
@@ -32,7 +41,7 @@ email: luke.titley@proton.ch
 urgency: medium
 stability: unstable
 description:
-- Fix unsupported type annotation in python 3.8.10
+- Fix unsupported type annotation in python 3.8.10.
 ---
 version: 0.9.6
 time: 2024/10/30 09:00
