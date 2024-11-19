@@ -40,14 +40,14 @@ setup(
             "wireguard = proton.vpn.backend.linux.networkmanager.killswitch.wireguard:WGKillSwitch",
         ]
     },
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     license="GPLv3",
-    platforms="OS Independent",
+    platforms="Linux",
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-        "Operating System :: OS Independent",
+        "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python",
         "Topic :: Security",
