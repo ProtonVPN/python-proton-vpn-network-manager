@@ -260,13 +260,6 @@ class Wireguard(LinuxNetworkManager):
         peer.is_valid(True, True)
         wireguard_config.append_peer(peer)
 
-        # If we don't set the listen port, NM will automatically set it to the default value 51820,
-        # thus we need to ensure that the endpoint port and the listen port match.
-        # https://lazka.github.io/pgi-docs/index.html#NM-1.0/classes/SettingWireGuard.html#NM.SettingWireGuard.props.listen_port
-        wireguard_config.set_property(
-            NM.SETTING_WIREGUARD_LISTEN_PORT,
-            self._vpnserver.wireguard_ports.udp[0]
-        )
         wireguard_config.set_property(
             NM.SETTING_WIREGUARD_PRIVATE_KEY,
             self._vpncredentials.pubkey_credentials.wg_private_key
