@@ -303,7 +303,11 @@ class Wireguard(LinuxNetworkManager):
         # Whenever we get an error we don't get the connection details.
         connection_details = getattr(status, "connection_details", None)
 
-        context = EventContext(connection=self, connection_details=connection_details)
+        context = EventContext(
+            connection=self,
+            connection_details=connection_details,
+            forwarded_port=0
+        )
         if status.state == State.CONNECTED:
             self._notify_subscribers(events.Connected(context))
         elif status.state == State.HARD_JAILED:
