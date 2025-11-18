@@ -26,20 +26,6 @@ setup(
     extras_require={
         "development": ["wheel", "pytest", "pytest-cov", "pytest-asyncio", "flake8", "pylint", "PyYAML"]
     },
-    entry_points={
-        "proton_loader_backend": [
-            "linuxnetworkmanager = proton.vpn.backend.linux.networkmanager.core:LinuxNetworkManager",
-        ],
-        "proton_loader_linuxnetworkmanager": [
-            "openvpn-tcp = proton.vpn.backend.linux.networkmanager.protocol.openvpn:OpenVPNTCP",
-            "openvpn-udp = proton.vpn.backend.linux.networkmanager.protocol.openvpn:OpenVPNUDP",
-            "wireguard = proton.vpn.backend.linux.networkmanager.protocol.wireguard:Wireguard",
-        ],
-        "proton_loader_killswitch": [
-            "default = proton.vpn.backend.linux.networkmanager.killswitch.default:NMKillSwitch",
-            "wireguard = proton.vpn.backend.linux.networkmanager.killswitch.wireguard:WGKillSwitch",
-        ]
-    },
     python_requires=">=3.9",
     license="GPLv3",
     platforms="Linux",

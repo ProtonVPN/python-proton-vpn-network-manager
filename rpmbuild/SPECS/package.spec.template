@@ -44,6 +44,7 @@ Conflicts: python3-proton-vpn-network-manager-openvpn < 0.1.1
 Conflicts: python3-proton-vpn-network-manager-wireguard < 0.4.7
 Conflicts: python3-proton-vpn-killswitch-network-manager < 0.6.1
 Conflicts: python3-proton-vpn-killswitch-network-manager-wireguard < 0.2.1
+Conflicts: python3-proton-vpn-api-core < 4.14.0
 
 Obsoletes: python3-proton-vpn-network-manager-openvpn
 Obsoletes: python3-proton-vpn-network-manager-wireguard

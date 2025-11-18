@@ -1,3 +1,5 @@
+> :warning: **This module is now legacy**: The same functionality is now in python-proton-vpn-api-core module, version `4.14.0` and upwards.
+
 # Proton VPN Network Manager
 
 The `proton-vpn-network-manager` component provides the necessary functionality for other components to interact with
